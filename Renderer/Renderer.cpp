@@ -8,16 +8,8 @@
 
 const char* k_shaderSource = R"(
 	@vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {
-    var p = vec2f(0.0, 0.0);
-    if (in_vertex_index == 0u) {
-        p = vec2f(-0.5, -0.5);
-    } else if (in_vertex_index == 1u) {
-        p = vec2f(0.5, -0.5);
-    } else {
-        p = vec2f(0.0, 0.5);
-    }
-    return vec4f(p, 0.0, 1.0);
+fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
+    return vec4f(in_vertex_position, 0.0, 1.0);
 }
 
 @fragment
@@ -92,10 +84,29 @@ int main()
 			std::cout << " - " << feature << "\n";
 		}
 
+		wgpu::SupportedLimits adapterLimits;
+		adapter.getLimits(&adapterLimits);
+		std::cout << "adapter.maxVertexAttributes: " << adapterLimits.limits.maxVertexAttributes << "\n";
+
+		//It's best practice to set these as low as possible to alert you when you are using more resources than you wants
+		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
+		requiredDeviceLimits.limits.maxVertexAttributes = 1;
+		requiredDeviceLimits.limits.maxVertexBuffers = 1;
+		requiredDeviceLimits.limits.maxBufferSize = 6 * 2 * sizeof(float); //2 2d tris
+		requiredDeviceLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float); //only 2d points
+		//Must be set even if we don't use em yet
+		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
+		requiredDeviceLimits.limits.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment;
+
 		wgpu::DeviceDescriptor deviceDescriptor{};
 		deviceDescriptor.label = "Default Device";
 		deviceDescriptor.defaultQueue.label = "Default Queue";
+		deviceDescriptor.requiredLimits = &requiredDeviceLimits;
 		wgpu::Device device = adapter.requestDevice(deviceDescriptor);
+
+		wgpu::SupportedLimits deviceLimits;
+		device.getLimits(&deviceLimits);
+		std::cout << "device.maxVertexAttributes: " << deviceLimits.limits.maxVertexAttributes << "\n";
 
 		auto onDeviceError = [](wgpu::ErrorType type, char const* message) {
 			std::cout << "Uncaptured Device error: type-" << type;
@@ -161,9 +172,24 @@ int main()
 		fragmentState.targetCount = 1;
 		fragmentState.targets = &colorTarget;
 
+		//Vertex attributes
+		wgpu::VertexAttribute vertexAttribute;
+		vertexAttribute.shaderLocation = 0;
+		vertexAttribute.format = wgpu::VertexFormat::Float32x2;
+		vertexAttribute.offset = 0;
+
+		uint32_t const k_vertexSize = 2 * sizeof(float);
+
+		//Vertex buffer layouts
+		wgpu::VertexBufferLayout vertexBufferLayout;
+		vertexBufferLayout.attributeCount = 1;
+		vertexBufferLayout.attributes = &vertexAttribute;
+		vertexBufferLayout.arrayStride = k_vertexSize;
+		vertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
+
 		wgpu::RenderPipelineDescriptor pipelineDesc{};
-		pipelineDesc.vertex.bufferCount = 0;
-		pipelineDesc.vertex.buffers = nullptr;
+		pipelineDesc.vertex.bufferCount = 1;
+		pipelineDesc.vertex.buffers = &vertexBufferLayout;
 		pipelineDesc.vertex.module = shaderModule;
 		pipelineDesc.vertex.entryPoint = "vs_main";
 		pipelineDesc.vertex.constantCount = 0;
@@ -185,6 +211,28 @@ int main()
 		pipelineDesc.layout = nullptr;
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
+
+		//Triangle buffer data
+		std::vector<float> vertexData =
+		{
+			-0.5f, -0.5f,
+			0.5f, -0.5f,
+			0.0f, 0.5f,
+			-0.55f, -0.5f,
+			-0.05f, 0.5f,
+			-0.55f, 0.5f
+		};
+		uint32_t vertexCount = (uint32_t)(vertexData.size() * sizeof(float)) / k_vertexSize ; //2 as 2 floats per vertex right now
+
+		//Create vertex buffer
+		wgpu::BufferDescriptor vertexBufferDesc;
+		vertexBufferDesc.size = vertexData.size() * sizeof(float);
+		vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
+		vertexBufferDesc.mappedAtCreation = false;
+		wgpu::Buffer vertexBuffer = device.createBuffer(vertexBufferDesc);
+
+		//upload vertex data to gpu
+		queue.writeBuffer(vertexBuffer, 0, vertexData.data(), vertexBufferDesc.size);
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -226,9 +274,23 @@ int main()
 
 		copyCommands.release();
 
-		auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void* /*userData*/) {
+		struct BufferMappedContext
+		{
+			wgpu::Buffer buffer;
+			uint32_t bufferSize;
+		};
+
+		auto onBuffer2Mapped = [](WGPUBufferMapAsyncStatus status, void* pUserData)
+		{
+			BufferMappedContext* pContext = reinterpret_cast<BufferMappedContext*>(pUserData);
 			std::cout << "Buffer 2 Mapped with status: " << status << "\n";
-			};
+
+			if (status != wgpu::BufferMapAsyncStatus::Success || pContext == nullptr) return;
+			//uint8_t* pBufferData = (uint8_t*)pContext->buffer.getConstMappedRange(0, pContext->bufferSize);
+			
+			//Once we are done with this data, unmap the buffer
+			pContext->buffer.unmap();
+		};
 		wgpuBufferMapAsync(buffer2, wgpu::MapMode::Read, 0, k_bufferSize, onBuffer2Mapped, nullptr);
 
 		while (!window.ShouldClose())
@@ -262,7 +324,8 @@ int main()
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
-			renderPassEncoder.draw(3, 1, 0, 0);
+			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(float));
+			renderPassEncoder.draw(vertexCount, 1, 0, 0);
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
 
@@ -277,13 +340,20 @@ int main()
 			encoder.release();
 			toDisplay.release();
 			swapchain.present();
+
+			//Wait until queue is finished processing
+#ifdef WEBGPU_BACKEND_WGPU
+			queue.submit(0, nullptr);
+#else
+			device.tick();
+#endif
 		}
 
 		//TODO raii webgpu generator
-		//buffer1.destroy();
-		//buffer1.release();
-		//buffer2.destroy();
-		//buffer2.release();
+		buffer1.destroy();
+		buffer1.release();
+		buffer2.destroy();
+		buffer2.release();
 		swapchain.release();
 		queue.release();
 		device.release();
