@@ -7,14 +7,27 @@
 #include <glfw3webgpu.h>
 
 const char* k_shaderSource = R"(
-	@vertex
-fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
-    return vec4f(in_vertex_position, 0.0, 1.0);
+struct VertexInput {
+	@location(0) position: vec2f,
+	@location(1) color: vec3f,
+};
+
+struct VertexOutput {
+	@builtin(position) position: vec4f,
+	@location(0) color: vec3f,
+};
+
+@vertex
+fn vs_main(in: VertexInput) -> VertexOutput {
+	var out: VertexOutput;
+    out.position = vec4f(in.position, 0.0, 1.0);
+	out.color = in.color;
+	return out;
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
-    return vec4f(0.0, 0.4, 1.0, 1.0);
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    return vec4f(in.color, 1.0);
 }
 )";
 
@@ -42,6 +55,12 @@ public:
 
 private:
 	GLFWwindow* pWindow;
+};
+
+struct InterleavedVertex
+{
+	float x, y;
+	float r, g, b;
 };
 
 int main()
@@ -90,10 +109,11 @@ int main()
 
 		//It's best practice to set these as low as possible to alert you when you are using more resources than you wants
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
-		requiredDeviceLimits.limits.maxVertexAttributes = 1;
+		requiredDeviceLimits.limits.maxVertexAttributes = 2;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
-		requiredDeviceLimits.limits.maxBufferSize = 6 * 2 * sizeof(float); //2 2d tris
-		requiredDeviceLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float); //only 2d points
+		requiredDeviceLimits.limits.maxBufferSize = 6 * sizeof(InterleavedVertex); //2 2d tris
+		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
+		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
 		requiredDeviceLimits.limits.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment;
@@ -115,7 +135,7 @@ int main()
 
 			assert(true);
 		};
-		device.setUncapturedErrorCallback(onDeviceError);
+		auto pErrorCallback = device.setUncapturedErrorCallback(onDeviceError);
 
 		wgpu::Queue queue = device.getQueue();
 
@@ -172,19 +192,21 @@ int main()
 		fragmentState.targetCount = 1;
 		fragmentState.targets = &colorTarget;
 
-		//Vertex attributes
-		wgpu::VertexAttribute vertexAttribute;
-		vertexAttribute.shaderLocation = 0;
-		vertexAttribute.format = wgpu::VertexFormat::Float32x2;
-		vertexAttribute.offset = 0;
+		//InterleavedVertex attributes
+		std::vector<wgpu::VertexAttribute> vertexAttributes(2);
+		vertexAttributes[0].shaderLocation = 0;
+		vertexAttributes[0].format = wgpu::VertexFormat::Float32x2;
+		vertexAttributes[0].offset = 0;
 
-		uint32_t const k_vertexSize = 2 * sizeof(float);
+		vertexAttributes[1].shaderLocation = 1;
+		vertexAttributes[1].format = wgpu::VertexFormat::Float32x3;
+		vertexAttributes[1].offset = 2 * sizeof(float);
 
-		//Vertex buffer layouts
+		//InterleavedVertex buffer layouts
 		wgpu::VertexBufferLayout vertexBufferLayout;
-		vertexBufferLayout.attributeCount = 1;
-		vertexBufferLayout.attributes = &vertexAttribute;
-		vertexBufferLayout.arrayStride = k_vertexSize;
+		vertexBufferLayout.attributeCount = (uint32_t)vertexAttributes.size();
+		vertexBufferLayout.attributes = vertexAttributes.data();
+		vertexBufferLayout.arrayStride = sizeof(InterleavedVertex);
 		vertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
 
 		wgpu::RenderPipelineDescriptor pipelineDesc{};
@@ -213,20 +235,20 @@ int main()
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
 		//Triangle buffer data
-		std::vector<float> vertexData =
+		std::vector<InterleavedVertex> vertexData =
 		{
-			-0.5f, -0.5f,
-			0.5f, -0.5f,
-			0.0f, 0.5f,
-			-0.55f, -0.5f,
-			-0.05f, 0.5f,
-			-0.55f, 0.5f
+			{-0.5f, -0.5f,		1.f, 0.f,0.f,},
+			{0.5f, -0.5f,		0.f,1.f,0.f, },
+			{0.0f, 0.5f,		0.f,0.f,1.f, },
+			{-0.55f, -0.5f,		1.f,0.f,0.f, },
+			{-0.05f, 0.5f,		0.f,1.f,0.f, },
+			{-0.55f, 0.5f,		0.f,0.f,1.f	 }
 		};
-		uint32_t vertexCount = (uint32_t)(vertexData.size() * sizeof(float)) / k_vertexSize ; //2 as 2 floats per vertex right now
+		uint32_t vertexCount = (uint32_t)vertexData.size();
 
 		//Create vertex buffer
 		wgpu::BufferDescriptor vertexBufferDesc;
-		vertexBufferDesc.size = vertexData.size() * sizeof(float);
+		vertexBufferDesc.size = vertexData.size() * sizeof(InterleavedVertex);
 		vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
 		vertexBufferDesc.mappedAtCreation = false;
 		wgpu::Buffer vertexBuffer = device.createBuffer(vertexBufferDesc);
@@ -324,7 +346,7 @@ int main()
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
-			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(float));
+			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(InterleavedVertex));
 			renderPassEncoder.draw(vertexCount, 1, 0, 0);
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
