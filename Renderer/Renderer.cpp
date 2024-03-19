@@ -19,8 +19,10 @@ struct VertexOutput {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
+	let ratio = 800.0 / 600.0; //target surface dimensions
+
 	var out: VertexOutput;
-    out.position = vec4f(in.position, 0.0, 1.0);
+    out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0);
 	out.color = in.color;
 	return out;
 }
@@ -239,12 +241,9 @@ int main()
 		{
 			{-0.5f, -0.5f,		1.f, 0.f,0.f,},
 			{0.5f, -0.5f,		0.f,1.f,0.f, },
-			{0.0f, 0.5f,		0.f,0.f,1.f, },
-			{-0.55f, -0.5f,		1.f,0.f,0.f, },
-			{-0.05f, 0.5f,		0.f,1.f,0.f, },
-			{-0.55f, 0.5f,		0.f,0.f,1.f	 }
+			{0.5f, 0.5f,		0.f,0.f,1.f, },
+			{-0.5f, 0.5f,		1.f,0.f,0.f, },
 		};
-		uint32_t vertexCount = (uint32_t)vertexData.size();
 
 		//Create vertex buffer
 		wgpu::BufferDescriptor vertexBufferDesc;
@@ -255,6 +254,25 @@ int main()
 
 		//upload vertex data to gpu
 		queue.writeBuffer(vertexBuffer, 0, vertexData.data(), vertexBufferDesc.size);
+
+		//Create index buffer
+		std::vector<uint16_t> indexData =
+		{
+			0,1,2,
+			0,2,3
+		};
+
+		wgpu::BufferDescriptor indexBufferDesc;
+		indexBufferDesc.size = indexData.size() * sizeof(uint16_t);
+		//wgpu has the requirement for data to be aligned to 4 bytes, so round up to the nearest 4
+		indexBufferDesc.size = (indexBufferDesc.size + 3) & ~3;
+
+		indexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
+		wgpu::Buffer indexBuffer = device.createBuffer(indexBufferDesc);
+
+		//upload index buffer to gpu
+		queue.writeBuffer(indexBuffer, 0, indexData.data(), indexBufferDesc.size);
+
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -347,7 +365,8 @@ int main()
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
 			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(InterleavedVertex));
-			renderPassEncoder.draw(vertexCount, 1, 0, 0);
+			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
+			renderPassEncoder.drawIndexed((uint32_t)indexData.size(), 1, 0, 0, 0);
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
 
