@@ -87,6 +87,9 @@ int main()
 		requiredDeviceLimits.limits.maxBufferSize = 15 * sizeof(InterleavedVertex); //2 2d tris
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
+		requiredDeviceLimits.limits.maxBindGroups = 1;
+		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
+		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 16 * sizeof(float); //uniform structs have a max size of 16 floats
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
 		requiredDeviceLimits.limits.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment;
@@ -116,6 +119,13 @@ int main()
 			std::cout << "Queued work completed with status: " << status << "\n";
 		};
 		queue.onSubmittedWorkDone(onQueueWorkDone);
+
+		//Create uniform buffer
+		wgpu::BufferDescriptor uniformBufferDesc{};
+		uniformBufferDesc.size = sizeof(float);
+		uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+		uniformBufferDesc.mappedAtCreation = false;
+		wgpu::Buffer uniformBuffer = device.createBuffer(uniformBufferDesc);
 
 		wgpu::TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 		if (swapChainFormat == wgpu::TextureFormat::Undefined) swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
@@ -159,6 +169,32 @@ int main()
 		fragmentState.targetCount = 1;
 		fragmentState.targets = &colorTarget;
 
+		//binding layout
+		wgpu::BindGroupLayoutEntry bindingLayout = wgpu::Default;
+		bindingLayout.binding = 0; //slot id
+		bindingLayout.visibility = wgpu::ShaderStage::Vertex;
+		bindingLayout.buffer.type = wgpu::BufferBindingType::Uniform;
+		bindingLayout.buffer.minBindingSize = sizeof(float);
+
+		//bind group layout
+		wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+		bindGroupLayoutDesc.entryCount = 1;
+		bindGroupLayoutDesc.entries = &bindingLayout;
+		wgpu::BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
+
+		//actual bind group
+		wgpu::BindGroupEntry binding{};
+		binding.binding = 0; //Slot id
+		binding.buffer = uniformBuffer;
+		binding.offset = 0;
+		binding.size = sizeof(float);
+
+		wgpu::BindGroupDescriptor bindingDesc{};
+		bindingDesc.layout = bindGroupLayout;
+		bindingDesc.entryCount = bindGroupLayoutDesc.entryCount;
+		bindingDesc.entries = &binding;
+		wgpu::BindGroup bindGroup = device.createBindGroup(bindingDesc);
+
 		//InterleavedVertex attributes
 		std::vector<wgpu::VertexAttribute> vertexAttributes(2);
 		vertexAttributes[0].shaderLocation = 0;
@@ -197,7 +233,13 @@ int main()
 		pipelineDesc.multisample.mask = ~0u; //all bits on
 		pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
-		pipelineDesc.layout = nullptr;
+		//Pipeline layout
+		wgpu::PipelineLayoutDescriptor pipelineLayoutDesc{};
+		pipelineLayoutDesc.bindGroupLayoutCount = 1;
+		pipelineLayoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&bindGroupLayout;
+		wgpu::PipelineLayout pipelineLayout = device.createPipelineLayout(pipelineLayoutDesc);
+
+		pipelineDesc.layout = pipelineLayout;
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
@@ -307,6 +349,10 @@ int main()
 			encoderDesc.label = "Default Command Encoder";
 			wgpu::CommandEncoder encoder = device.createCommandEncoder(encoderDesc);
 
+			//Upload uniforms
+			float currentTime = static_cast<float>(glfwGetTime());
+			queue.writeBuffer(uniformBuffer, 0, &currentTime, sizeof(currentTime));
+
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
 			rpColorAttachment.resolveTarget = nullptr;
@@ -323,6 +369,7 @@ int main()
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
+			renderPassEncoder.setBindGroup(0, bindGroup, 0, nullptr);
 			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
 			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
 			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);

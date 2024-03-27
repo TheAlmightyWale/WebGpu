@@ -8,11 +8,15 @@ struct VertexOutput {
 	@location(0) color: vec3f,
 };
 
+//variable sits within the uniform address space
+@group(0) @binding(0) var<uniform> uTime: f32;
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	let ratio = 800.0 / 600.0; //target surface dimensions
 
-	let offset = vec2f(-0.6875, -0.463);
+	var offset = vec2f(-0.6875, -0.463);
+	offset += 0.3 * vec2f(cos(uTime), sin(uTime));
 
 	var out: VertexOutput;
     out.position = vec4f(in.position.x + offset.x, (in.position.y + offset.y) * ratio, 0.0, 1.0);
