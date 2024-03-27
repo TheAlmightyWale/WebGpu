@@ -1,37 +1,9 @@
 ﻿// Defines the entry point for the application.
 #include <iostream>
 #include <GLFW/glfw3.h>
-
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
+#include "webgpu.h"
+#include "Utils.h"
 #include <glfw3webgpu.h>
-
-const char* k_shaderSource = R"(
-struct VertexInput {
-	@location(0) position: vec2f,
-	@location(1) color: vec3f,
-};
-
-struct VertexOutput {
-	@builtin(position) position: vec4f,
-	@location(0) color: vec3f,
-};
-
-@vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
-	let ratio = 800.0 / 600.0; //target surface dimensions
-
-	var out: VertexOutput;
-    out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0);
-	out.color = in.color;
-	return out;
-}
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(in.color, 1.0);
-}
-)";
 
 class Window
 {
@@ -93,7 +65,6 @@ int main()
 		adapterOptions.compatibleSurface = surface;
 		wgpu::Adapter adapter = instance.requestAdapter(adapterOptions);
 
-
 		std::vector<wgpu::FeatureName> features;
 		size_t featureCount = adapter.enumerateFeatures(nullptr);
 		features.resize(featureCount, wgpu::FeatureName::Undefined);
@@ -113,7 +84,7 @@ int main()
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
 		requiredDeviceLimits.limits.maxVertexAttributes = 2;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
-		requiredDeviceLimits.limits.maxBufferSize = 6 * sizeof(InterleavedVertex); //2 2d tris
+		requiredDeviceLimits.limits.maxBufferSize = 15 * sizeof(InterleavedVertex); //2 2d tris
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
 		//Must be set even if we don't use em yet
@@ -159,7 +130,6 @@ int main()
 
 		std::cout << "Swapchain: " << swapchain << "\n";
 
-
 		wgpu::BlendState blendState{};
 		blendState.color.srcFactor = wgpu::BlendFactor::SrcAlpha;
 		blendState.color.dstFactor = wgpu::BlendFactor::OneMinusDstAlpha;
@@ -173,18 +143,13 @@ int main()
 		colorTarget.blend = &blendState;
 		colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
-		wgpu::ShaderModuleWGSLDescriptor shaderCodeDesc{};
-		shaderCodeDesc.chain.next = nullptr;
-		shaderCodeDesc.chain.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
-		shaderCodeDesc.code = k_shaderSource;
-
-		wgpu::ShaderModuleDescriptor shaderDesc{};
-		shaderDesc.nextInChain = &shaderCodeDesc.chain;
-#ifdef WEBGPU_BACKEND_WGPU
-		shaderDesc.hintCount = 0;
-		shaderDesc.hints = nullptr;
-#endif
-		wgpu::ShaderModule shaderModule = device.createShaderModule(shaderDesc);
+		auto oShaderModule = Utils::LoadShaderModule(ASSETS_DIR "/shader.wgsl", device);
+		if (!oShaderModule)
+		{
+			std::cout << "Failed to create Shader Module" << std::endl;
+			return -1;
+		}
+		wgpu::ShaderModule shaderModule = *oShaderModule;
 
 		wgpu::FragmentState fragmentState{};
 		fragmentState.module = shaderModule;
@@ -236,34 +201,29 @@ int main()
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
-		//Triangle buffer data
-		std::vector<InterleavedVertex> vertexData =
+		//Load object
+		auto oObject = Utils::LoadGeometry(ASSETS_DIR "/object.txt");
+
+		if (!oObject)
 		{
-			{-0.5f, -0.5f,		1.f, 0.f,0.f,},
-			{0.5f, -0.5f,		0.f,1.f,0.f, },
-			{0.5f, 0.5f,		0.f,0.f,1.f, },
-			{-0.5f, 0.5f,		1.f,0.f,0.f, },
-		};
+			std::cout << "Failed to load object" << std::endl;
+			return -1;
+		}
+		Object object = *oObject;
 
 		//Create vertex buffer
 		wgpu::BufferDescriptor vertexBufferDesc;
-		vertexBufferDesc.size = vertexData.size() * sizeof(InterleavedVertex);
+		vertexBufferDesc.size = object.points.size() * sizeof(float);
 		vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
 		vertexBufferDesc.mappedAtCreation = false;
 		wgpu::Buffer vertexBuffer = device.createBuffer(vertexBufferDesc);
 
 		//upload vertex data to gpu
-		queue.writeBuffer(vertexBuffer, 0, vertexData.data(), vertexBufferDesc.size);
+		queue.writeBuffer(vertexBuffer, 0, object.points.data(), vertexBufferDesc.size);
 
 		//Create index buffer
-		std::vector<uint16_t> indexData =
-		{
-			0,1,2,
-			0,2,3
-		};
-
 		wgpu::BufferDescriptor indexBufferDesc;
-		indexBufferDesc.size = indexData.size() * sizeof(uint16_t);
+		indexBufferDesc.size = object.indices.size() * sizeof(uint16_t);
 		//wgpu has the requirement for data to be aligned to 4 bytes, so round up to the nearest 4
 		indexBufferDesc.size = (indexBufferDesc.size + 3) & ~3;
 
@@ -271,8 +231,7 @@ int main()
 		wgpu::Buffer indexBuffer = device.createBuffer(indexBufferDesc);
 
 		//upload index buffer to gpu
-		queue.writeBuffer(indexBuffer, 0, indexData.data(), indexBufferDesc.size);
-
+		queue.writeBuffer(indexBuffer, 0, object.indices.data(), indexBufferDesc.size);
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -364,9 +323,9 @@ int main()
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
-			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, vertexData.size() * sizeof(InterleavedVertex));
-			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, indexData.size() * sizeof(uint16_t));
-			renderPassEncoder.drawIndexed((uint32_t)indexData.size(), 1, 0, 0, 0);
+			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
+			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
+			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
 
