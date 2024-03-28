@@ -4,6 +4,7 @@
 #include "webgpu.h"
 #include "Utils.h"
 #include <glfw3webgpu.h>
+#include <array>
 
 class Window
 {
@@ -36,6 +37,15 @@ struct InterleavedVertex
 	float x, y;
 	float r, g, b;
 };
+
+struct Uniforms
+{
+	std::array<float, 4> color;
+	float time;
+	float _pad[3]; //struct must be 16byte aligned
+};
+
+static_assert(sizeof(Uniforms) % 16 == 0);
 
 int main()
 {
@@ -120,9 +130,15 @@ int main()
 		};
 		queue.onSubmittedWorkDone(onQueueWorkDone);
 
+		Uniforms uniform
+		{
+			.color{1.0f,1.0f,1.0f,1.0f},
+			.time{1.0f}
+		};
+
 		//Create uniform buffer
 		wgpu::BufferDescriptor uniformBufferDesc{};
-		uniformBufferDesc.size = sizeof(float);
+		uniformBufferDesc.size = sizeof(Uniforms);
 		uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
 		uniformBufferDesc.mappedAtCreation = false;
 		wgpu::Buffer uniformBuffer = device.createBuffer(uniformBufferDesc);
@@ -172,9 +188,9 @@ int main()
 		//binding layout
 		wgpu::BindGroupLayoutEntry bindingLayout = wgpu::Default;
 		bindingLayout.binding = 0; //slot id
-		bindingLayout.visibility = wgpu::ShaderStage::Vertex;
+		bindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
 		bindingLayout.buffer.type = wgpu::BufferBindingType::Uniform;
-		bindingLayout.buffer.minBindingSize = sizeof(float);
+		bindingLayout.buffer.minBindingSize = sizeof(Uniforms);
 
 		//bind group layout
 		wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc{};
@@ -187,7 +203,7 @@ int main()
 		binding.binding = 0; //Slot id
 		binding.buffer = uniformBuffer;
 		binding.offset = 0;
-		binding.size = sizeof(float);
+		binding.size = sizeof(Uniforms);
 
 		wgpu::BindGroupDescriptor bindingDesc{};
 		bindingDesc.layout = bindGroupLayout;
@@ -350,8 +366,8 @@ int main()
 			wgpu::CommandEncoder encoder = device.createCommandEncoder(encoderDesc);
 
 			//Upload uniforms
-			float currentTime = static_cast<float>(glfwGetTime());
-			queue.writeBuffer(uniformBuffer, 0, &currentTime, sizeof(currentTime));
+			uniform.time = static_cast<float>(glfwGetTime());
+			queue.writeBuffer(uniformBuffer, 0, &uniform, sizeof(uniform));
 
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
