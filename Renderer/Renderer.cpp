@@ -34,7 +34,7 @@ private:
 
 struct InterleavedVertex
 {
-	float x, y;
+	float x, y, z;
 	float r, g, b;
 };
 
@@ -100,7 +100,7 @@ int main()
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
 		requiredDeviceLimits.limits.maxVertexAttributes = 2;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
-		requiredDeviceLimits.limits.maxBufferSize = 15 * sizeof(InterleavedVertex); //2 2d tris
+		requiredDeviceLimits.limits.maxBufferSize = 15 * sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
 		requiredDeviceLimits.limits.maxBindGroups = 1;
@@ -232,12 +232,12 @@ int main()
 		//InterleavedVertex attributes
 		std::vector<wgpu::VertexAttribute> vertexAttributes(2);
 		vertexAttributes[0].shaderLocation = 0;
-		vertexAttributes[0].format = wgpu::VertexFormat::Float32x2;
+		vertexAttributes[0].format = wgpu::VertexFormat::Float32x3; //TODO handle 2d
 		vertexAttributes[0].offset = 0;
 
 		vertexAttributes[1].shaderLocation = 1;
 		vertexAttributes[1].format = wgpu::VertexFormat::Float32x3;
-		vertexAttributes[1].offset = 2 * sizeof(float);
+		vertexAttributes[1].offset = 3 * sizeof(float);
 
 		//InterleavedVertex buffer layouts
 		wgpu::VertexBufferLayout vertexBufferLayout;
@@ -277,37 +277,66 @@ int main()
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
-		//Load object
-		auto oObject = Utils::LoadGeometry(ASSETS_DIR "/object.txt", 2);
+		//Commented for now until we support both 2d and 3d
+		////Load object
+		//auto oObject = Utils::LoadGeometry(ASSETS_DIR "/object.txt", 2);
 
-		if (!oObject)
+		//if (!oObject)
+		//{
+		//	std::cout << "Failed to load object" << std::endl;
+		//	return -1;
+		//}
+		//Object object = *oObject;
+
+		////Create vertex buffer
+		//wgpu::BufferDescriptor vertexBufferDesc;
+		//vertexBufferDesc.size = object.points.size() * sizeof(float);
+		//vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
+		//vertexBufferDesc.mappedAtCreation = false;
+		//wgpu::Buffer vertexBuffer = device.createBuffer(vertexBufferDesc);
+
+		////upload vertex data to gpu
+		//queue.writeBuffer(vertexBuffer, 0, object.points.data(), vertexBufferDesc.size);
+
+		////Create index buffer
+		//wgpu::BufferDescriptor indexBufferDesc;
+		//indexBufferDesc.size = object.indices.size() * sizeof(uint16_t);
+		////wgpu has the requirement for data to be aligned to 4 bytes, so round up to the nearest 4
+		//indexBufferDesc.size = (indexBufferDesc.size + 3) & ~3;
+
+		//indexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
+		//wgpu::Buffer indexBuffer = device.createBuffer(indexBufferDesc);
+
+		////upload index buffer to gpu
+		//queue.writeBuffer(indexBuffer, 0, object.indices.data(), indexBufferDesc.size);
+
+		//Load pyramid
+		auto oPyramid = Utils::LoadGeometry(ASSETS_DIR "/pyramid.txt", 3);
+		if (!oPyramid)
 		{
-			std::cout << "Failed to load object" << std::endl;
+			std::cout << "Failed to load pyramid" << std::endl;
 			return -1;
 		}
-		Object object = *oObject;
 
-		//Create vertex buffer
-		wgpu::BufferDescriptor vertexBufferDesc;
-		vertexBufferDesc.size = object.points.size() * sizeof(float);
-		vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
-		vertexBufferDesc.mappedAtCreation = false;
-		wgpu::Buffer vertexBuffer = device.createBuffer(vertexBufferDesc);
+		Object pyramid = *oPyramid;
+		//Create pyramid vertex buffer
+		wgpu::BufferDescriptor vertexBufferDesc2;
+		vertexBufferDesc2.size = pyramid.points.size() * sizeof(float);
+		vertexBufferDesc2.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
+		vertexBufferDesc2.mappedAtCreation = false;
+		wgpu::Buffer vertexBuffer2 = device.createBuffer(vertexBufferDesc2);
 
 		//upload vertex data to gpu
-		queue.writeBuffer(vertexBuffer, 0, object.points.data(), vertexBufferDesc.size);
+		queue.writeBuffer(vertexBuffer2, 0, pyramid.points.data(), vertexBufferDesc2.size);
 
 		//Create index buffer
-		wgpu::BufferDescriptor indexBufferDesc;
-		indexBufferDesc.size = object.indices.size() * sizeof(uint16_t);
+		wgpu::BufferDescriptor indexBufferDesc2;
+		indexBufferDesc2.size = pyramid.indices.size() * sizeof(uint16_t);
 		//wgpu has the requirement for data to be aligned to 4 bytes, so round up to the nearest 4
-		indexBufferDesc.size = (indexBufferDesc.size + 3) & ~3;
-
-		indexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
-		wgpu::Buffer indexBuffer = device.createBuffer(indexBufferDesc);
-
-		//upload index buffer to gpu
-		queue.writeBuffer(indexBuffer, 0, object.indices.data(), indexBufferDesc.size);
+		indexBufferDesc2.size = (indexBufferDesc2.size + 3) & ~3;
+		indexBufferDesc2.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
+		wgpu::Buffer indexBuffer2 = device.createBuffer(indexBufferDesc2);
+		queue.writeBuffer(indexBuffer2, 0, pyramid.indices.data(), indexBufferDesc2.size);
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -409,14 +438,19 @@ int main()
 			uint32_t dynamicOffset = 0;
 			renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
 
-			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
-			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
-			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+			//renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
+			//renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
+			//renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
 
-			//Seond draw with differnt uniforms
-			dynamicOffset = uniformStride;
-			renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
-			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+			////Seond draw with differnt uniforms
+			//dynamicOffset = uniformStride;
+			//renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
+			//renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+
+			//pyramid draw
+			renderPassEncoder.setVertexBuffer(0, vertexBuffer2, 0, pyramid.points.size() * sizeof(float));
+			renderPassEncoder.setIndexBuffer(indexBuffer2, wgpu::IndexFormat::Uint16, 0, pyramid.indices.size() * sizeof(uint16_t));
+			renderPassEncoder.drawIndexed((uint32_t)pyramid.indices.size(), 1, 0, 0, 0);
 
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
