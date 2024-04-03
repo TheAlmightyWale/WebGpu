@@ -47,6 +47,12 @@ struct Uniforms
 
 static_assert(sizeof(Uniforms) % 16 == 0);
 
+uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
+{
+	uint32_t divideAndCeil = value / multiple + (value % multiple == 0 ? 0 : 1);
+	return multiple * divideAndCeil;
+}
+
 int main()
 {
 	if (!glfwInit())
@@ -100,6 +106,7 @@ int main()
 		requiredDeviceLimits.limits.maxBindGroups = 1;
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
 		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 16 * sizeof(float); //uniform structs have a max size of 16 floats
+		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
 		requiredDeviceLimits.limits.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment;
@@ -113,6 +120,8 @@ int main()
 		wgpu::SupportedLimits deviceLimits;
 		device.getLimits(&deviceLimits);
 		std::cout << "device.maxVertexAttributes: " << deviceLimits.limits.maxVertexAttributes << "\n";
+
+		uint32_t uniformStride = CeilToNextMultiple((uint32_t)sizeof(Uniforms), (uint32_t)deviceLimits.limits.minUniformBufferOffsetAlignment);
 
 		auto onDeviceError = [](wgpu::ErrorType type, char const* message) {
 			std::cout << "Uncaptured Device error: type-" << type;
@@ -136,9 +145,17 @@ int main()
 			.time{1.0f}
 		};
 
+		Uniforms uniform2
+		{
+			.color{ 0.0f, 1.0f, 0.4f, 1.0f},
+			.time{-1.0f}
+		};
+
 		//Create uniform buffer
 		wgpu::BufferDescriptor uniformBufferDesc{};
-		uniformBufferDesc.size = sizeof(Uniforms);
+		// The buffer will contain 2 values for the uniforms plus the space in between
+		// (stride = sizeof(Uniforms) + spacing)
+		uniformBufferDesc.size = uniformStride + sizeof(Uniforms);
 		uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
 		uniformBufferDesc.mappedAtCreation = false;
 		wgpu::Buffer uniformBuffer = device.createBuffer(uniformBufferDesc);
@@ -191,6 +208,7 @@ int main()
 		bindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
 		bindingLayout.buffer.type = wgpu::BufferBindingType::Uniform;
 		bindingLayout.buffer.minBindingSize = sizeof(Uniforms);
+		bindingLayout.buffer.hasDynamicOffset = true; //Dynamic Buffer
 
 		//bind group layout
 		wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc{};
@@ -260,7 +278,7 @@ int main()
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
 		//Load object
-		auto oObject = Utils::LoadGeometry(ASSETS_DIR "/object.txt");
+		auto oObject = Utils::LoadGeometry(ASSETS_DIR "/object.txt", 2);
 
 		if (!oObject)
 		{
@@ -367,7 +385,9 @@ int main()
 
 			//Upload uniforms
 			uniform.time = static_cast<float>(glfwGetTime());
-			queue.writeBuffer(uniformBuffer, 0, &uniform, sizeof(uniform));
+			queue.writeBuffer(uniformBuffer, 0, &uniform, sizeof(Uniforms));
+			//Second dynamic uniform
+			queue.writeBuffer(uniformBuffer, uniformStride, &uniform2, sizeof(Uniforms));
 
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
@@ -385,10 +405,19 @@ int main()
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
-			renderPassEncoder.setBindGroup(0, bindGroup, 0, nullptr);
+
+			uint32_t dynamicOffset = 0;
+			renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
+
 			renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
 			renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
 			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+
+			//Seond draw with differnt uniforms
+			dynamicOffset = uniformStride;
+			renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
+			renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+
 			renderPassEncoder.end(); // clears screen
 			renderPassEncoder.release();
 
