@@ -53,6 +53,9 @@ uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 	return multiple * divideAndCeil;
 }
 
+constexpr uint32_t k_screenWidth = 800;
+constexpr uint32_t k_screenHeight = 600;
+
 int main()
 {
 	if (!glfwInit())
@@ -107,6 +110,10 @@ int main()
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
 		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 16 * sizeof(float); //uniform structs have a max size of 16 floats
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
+		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
+		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
+		requiredDeviceLimits.limits.maxTextureArrayLayers = 1;
+
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
 		requiredDeviceLimits.limits.minUniformBufferOffsetAlignment = adapterLimits.limits.minUniformBufferOffsetAlignment;
@@ -163,8 +170,8 @@ int main()
 		wgpu::TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 		if (swapChainFormat == wgpu::TextureFormat::Undefined) swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
 		wgpu::SwapChainDescriptor swapChainDesc{};
-		swapChainDesc.width = 800;
-		swapChainDesc.height = 600;
+		swapChainDesc.width = k_screenWidth;
+		swapChainDesc.height = k_screenHeight;
 		swapChainDesc.format = swapChainFormat;
 		swapChainDesc.usage = wgpu::TextureUsage::RenderAttachment;
 		swapChainDesc.presentMode = wgpu::PresentMode::Fifo;
@@ -227,6 +234,7 @@ int main()
 		bindingDesc.layout = bindGroupLayout;
 		bindingDesc.entryCount = bindGroupLayoutDesc.entryCount;
 		bindingDesc.entries = &binding;
+		bindingDesc.entries = &binding;
 		wgpu::BindGroup bindGroup = device.createBindGroup(bindingDesc);
 
 		//InterleavedVertex attributes
@@ -261,7 +269,17 @@ int main()
 
 		pipelineDesc.fragment = &fragmentState;
 
-		pipelineDesc.depthStencil = nullptr;
+
+		wgpu::DepthStencilState depthStencilState = wgpu::Default;
+		depthStencilState.depthCompare = wgpu::CompareFunction::Less;
+		depthStencilState.depthWriteEnabled = true;
+		wgpu::TextureFormat depthTextureFormat = wgpu::TextureFormat::Depth24Plus;
+		depthStencilState.format = depthTextureFormat;
+		//No stencil ability
+		depthStencilState.stencilReadMask = 0;
+		depthStencilState.stencilWriteMask = 0;
+
+		pipelineDesc.depthStencil = &depthStencilState;
 
 		pipelineDesc.multisample.count = 1;
 		pipelineDesc.multisample.mask = ~0u; //all bits on
@@ -276,6 +294,30 @@ int main()
 		pipelineDesc.layout = pipelineLayout;
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
+
+		//Create depth texture and depth texture view
+		wgpu::TextureDescriptor depthTextureDesc;
+		depthTextureDesc.dimension = wgpu::TextureDimension::_2D;
+		depthTextureDesc.format = depthTextureFormat;
+		depthTextureDesc.mipLevelCount = 1;
+		depthTextureDesc.sampleCount = 1;
+		depthTextureDesc.size = { swapChainDesc.width, swapChainDesc.height, 1 };
+		depthTextureDesc.usage = wgpu::TextureUsage::RenderAttachment;
+		depthTextureDesc.viewFormatCount = 1;
+		depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
+		wgpu::Texture depthTexture = device.createTexture(depthTextureDesc);
+
+		wgpu::TextureViewDescriptor depthTextureViewDesc;
+		depthTextureViewDesc.aspect = wgpu::TextureAspect::DepthOnly;
+		depthTextureViewDesc.baseArrayLayer = 0;
+		depthTextureViewDesc.arrayLayerCount = 1;
+		depthTextureViewDesc.baseMipLevel = 0;
+		depthTextureViewDesc.mipLevelCount = 1;
+		depthTextureViewDesc.dimension = wgpu::TextureViewDimension::_2D;
+		depthTextureViewDesc.format = depthTextureFormat;
+		wgpu::TextureView depthTextureView = depthTexture.createView(depthTextureViewDesc);
+
+
 
 		//Commented for now until we support both 2d and 3d
 		////Load object
@@ -425,12 +467,24 @@ int main()
 			rpColorAttachment.storeOp = wgpu::StoreOp::Store;
 			rpColorAttachment.clearValue = wgpu::Color{ 0.9, 0.1, 0.2, 1.0 };
 
+			wgpu::RenderPassDepthStencilAttachment rpDepthAttachment;
+			rpDepthAttachment.view = depthTextureView;
+			rpDepthAttachment.depthClearValue = 1.0f; //Maximum distance possible
+			rpDepthAttachment.depthLoadOp = wgpu::LoadOp::Clear;
+			rpDepthAttachment.depthStoreOp = wgpu::StoreOp::Store;
+			rpDepthAttachment.depthReadOnly = false;
+			//current unused stencil params, but need to be filled out
+			rpDepthAttachment.stencilClearValue = 0;
+			rpDepthAttachment.stencilLoadOp = wgpu::LoadOp::Clear;
+			rpDepthAttachment.stencilStoreOp = wgpu::StoreOp::Store;
+			rpDepthAttachment.stencilReadOnly = true;
+
 			wgpu::RenderPassDescriptor renderPassDesc{};
 			renderPassDesc.colorAttachmentCount = 1;
 			renderPassDesc.colorAttachments = &rpColorAttachment;
 			renderPassDesc.timestampWriteCount = 0;
 			renderPassDesc.timestampWrites = nullptr;
-			renderPassDesc.depthStencilAttachment = nullptr;
+			renderPassDesc.depthStencilAttachment = &rpDepthAttachment;
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
 			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
 			renderPassEncoder.setPipeline(pipeline);
@@ -480,6 +534,11 @@ int main()
 		buffer1.release();
 		buffer2.destroy();
 		buffer2.release();
+
+		depthTextureView.release();
+		depthTexture.destroy();
+		depthTexture.release();
+
 		swapchain.release();
 		queue.release();
 		device.release();
