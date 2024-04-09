@@ -7,9 +7,9 @@
 option(DEV_MODE "Set up development helper settings" ON)
 
 # Add source to this project's executable.
-add_executable (Renderer "Renderer.cpp" "webgpu.h" "webgpu.cpp" "Utils.h")
+add_executable (Renderer "Renderer.cpp" "webgpu.h" "webgpu.cpp" "Utils.h" "MathDefs.h")
 
-target_link_libraries(Renderer PRIVATE glfw webgpu glfw3webgpu)
+target_link_libraries(Renderer PRIVATE glfw webgpu glfw3webgpu glm)
 
 set_target_properties(Renderer PROPERTIES 
 	CXX_STANDARD 20

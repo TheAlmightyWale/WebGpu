@@ -9,6 +9,9 @@ struct VertexOutput {
 };
 
 struct Uniforms {
+	projection: mat4x4f,
+	view: mat4x4f,
+	model: mat4x4f,
 	color: vec4f,
 	time: f32,
 };
@@ -18,23 +21,8 @@ struct Uniforms {
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
-	let ratio = 800.0 / 600.0; //target surface dimensions
-
-	var offset = vec2f(-0.6875, -0.463);
-	offset += 0.3 * vec2f(cos(uUniforms.time), sin(uUniforms.time));
-	//Do nothing with offset for now
-
-	let angle = uUniforms.time;
-	let alpha: f32 = cos(angle);
-	let beta: f32 = sin(angle);
-	var position = vec3f(
-		in.position.x,
-		alpha * in.position.y + beta * in.position.z,
-		alpha * in.position.z - beta * in.position.y,
-	);
-
 	var out: VertexOutput;
-    out.position = vec4f(position.x, (position.y) * ratio, position.z * 0.5 + 0.5, 1.0);
+    out.position = uUniforms.projection * uUniforms.view * uUniforms.model * vec4f(in.position, 1.0);
 	out.color = in.color;
 	return out;
 }

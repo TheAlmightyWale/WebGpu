@@ -5,6 +5,7 @@
 #include "Utils.h"
 #include <glfw3webgpu.h>
 #include <array>
+#include "MathDefs.h"
 
 class Window
 {
@@ -40,7 +41,10 @@ struct InterleavedVertex
 
 struct Uniforms
 {
-	std::array<float, 4> color;
+	Mat4f projection;
+	Mat4f view;
+	Mat4f model;
+	Vec4f color;
 	float time;
 	float _pad[3]; //struct must be 16byte aligned
 };
@@ -103,12 +107,12 @@ int main()
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
 		requiredDeviceLimits.limits.maxVertexAttributes = 2;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
-		requiredDeviceLimits.limits.maxBufferSize = 15 * sizeof(InterleavedVertex);
+		requiredDeviceLimits.limits.maxBufferSize = 30 * sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
 		requiredDeviceLimits.limits.maxBindGroups = 1;
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
-		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 16 * sizeof(float); //uniform structs have a max size of 16 floats
+		requiredDeviceLimits.limits.maxUniformBufferBindingSize = sizeof(Uniforms);
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
@@ -146,12 +150,33 @@ int main()
 		};
 		queue.onSubmittedWorkDone(onQueueWorkDone);
 
+		float angle1 = 2.0f; //arbitrary
+		float angle2 = 3.0f * PI / 4.0f;
+		Vec3f focalPoint = { 0.0f, 0.0f, -2.0f };
+
+		Mat4f scale = glm::scale(Mat4f(1.0f), Vec3f(0.3f));
+		Mat4f translation1 = glm::translate(Mat4f(1.0f), Vec3f(0.5f, 0.f, 0.f));
+		Mat4f rotation1 = glm::rotate(Mat4f(1.0f), angle1, Vec3f(0.0f, 1.0f, 0.0f));
+
+		Mat4f translation2 = glm::translate(Mat4f(1.0f), -focalPoint);
+		Mat4f rotation2 = glm::rotate(Mat4f(1.0f), angle2, Vec3f(1.0f, 0.0f, 0.0f));
+
+		float focalLength = 2.0f;
+		float fov = 2.0f * glm::atan(1.0f, focalLength);
+		float ratio = (float)k_screenWidth / (float)k_screenHeight;
+		float nearPlane = 0.01f;
+		float farPlane = 100.0f;
+
 		Uniforms uniform
 		{
-			.color{1.0f,1.0f,1.0f,1.0f},
+			.projection = glm::perspective(fov, ratio, nearPlane, farPlane),
+			.view = translation2 * rotation2,
+			.model = rotation1 * translation1 * scale, //rotation after translation to orbit
+			.color{0.0f, 1.0f, 0.4f, 1.0f},
 			.time{1.0f}
 		};
 
+		//Unused right now
 		Uniforms uniform2
 		{
 			.color{ 0.0f, 1.0f, 0.4f, 1.0f},
@@ -453,6 +478,11 @@ int main()
 			wgpu::CommandEncoderDescriptor encoderDesc{};
 			encoderDesc.label = "Default Command Encoder";
 			wgpu::CommandEncoder encoder = device.createCommandEncoder(encoderDesc);
+
+			//Update view matrix
+			angle1 = uniform.time;
+			rotation1 = glm::rotate(Mat4f(1.0f), angle1, Vec3f(0.0f, 0.0f, 1.0f));
+			uniform.model = rotation1 * translation1 * scale;
 
 			//Upload uniforms
 			uniform.time = static_cast<float>(glfwGetTime());
