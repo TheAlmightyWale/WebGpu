@@ -36,6 +36,7 @@ private:
 struct InterleavedVertex
 {
 	float x, y, z;
+	float nx, ny, nz;
 	float r, g, b;
 };
 
@@ -105,11 +106,11 @@ int main()
 
 		//It's best practice to set these as low as possible to alert you when you are using more resources than you wants
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
-		requiredDeviceLimits.limits.maxVertexAttributes = 2;
+		requiredDeviceLimits.limits.maxVertexAttributes = 3;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
 		requiredDeviceLimits.limits.maxBufferSize = 30 * sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
-		requiredDeviceLimits.limits.maxInterStageShaderComponents = 3; // 3 extra floats transferred between vertex and fragment shader
+		requiredDeviceLimits.limits.maxInterStageShaderComponents = 6; // everything other than default position needs to be under this max
 		requiredDeviceLimits.limits.maxBindGroups = 1;
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
 		requiredDeviceLimits.limits.maxUniformBufferBindingSize = sizeof(Uniforms);
@@ -156,7 +157,7 @@ int main()
 
 		Mat4f scale = glm::scale(Mat4f(1.0f), Vec3f(0.3f));
 		Mat4f translation1 = glm::translate(Mat4f(1.0f), Vec3f(0.5f, 0.f, 0.f));
-		Mat4f rotation1 = glm::rotate(Mat4f(1.0f), angle1, Vec3f(0.0f, 1.0f, 0.0f));
+		Mat4f rotation1 = glm::rotate(Mat4f(1.0f), angle1, Vec3f(0.0f, 0.0f, 1.0f));
 
 		Mat4f translation2 = glm::translate(Mat4f(1.0f), -focalPoint);
 		Mat4f rotation2 = glm::rotate(Mat4f(1.0f), angle2, Vec3f(1.0f, 0.0f, 0.0f));
@@ -263,14 +264,18 @@ int main()
 		wgpu::BindGroup bindGroup = device.createBindGroup(bindingDesc);
 
 		//InterleavedVertex attributes
-		std::vector<wgpu::VertexAttribute> vertexAttributes(2);
+		std::vector<wgpu::VertexAttribute> vertexAttributes(3);
 		vertexAttributes[0].shaderLocation = 0;
 		vertexAttributes[0].format = wgpu::VertexFormat::Float32x3; //TODO handle 2d
 		vertexAttributes[0].offset = 0;
-
+		//Normal
 		vertexAttributes[1].shaderLocation = 1;
 		vertexAttributes[1].format = wgpu::VertexFormat::Float32x3;
-		vertexAttributes[1].offset = 3 * sizeof(float);
+		vertexAttributes[1].offset = offsetof(InterleavedVertex, nx);
+		//Color
+		vertexAttributes[2].shaderLocation = 2;
+		vertexAttributes[2].format = wgpu::VertexFormat::Float32x3;
+		vertexAttributes[2].offset = offsetof(InterleavedVertex, r);
 
 		//InterleavedVertex buffer layouts
 		wgpu::VertexBufferLayout vertexBufferLayout;
@@ -378,7 +383,7 @@ int main()
 		//queue.writeBuffer(indexBuffer, 0, object.indices.data(), indexBufferDesc.size);
 
 		//Load pyramid
-		auto oPyramid = Utils::LoadGeometry(ASSETS_DIR "/pyramid.txt", 3);
+		auto oPyramid = Utils::LoadGeometry(ASSETS_DIR "/pyramid.txt");
 		if (!oPyramid)
 		{
 			std::cout << "Failed to load pyramid" << std::endl;

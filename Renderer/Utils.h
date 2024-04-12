@@ -12,7 +12,7 @@ struct Object
 
 namespace Utils
 {
-	std::optional<Object> LoadGeometry(std::filesystem::path const& path, int dimensions)
+	std::optional<Object> LoadGeometry(std::filesystem::path const& path)
 	{
 		std::ifstream file(path);
 		if (!file.is_open()) return std::nullopt;
@@ -52,8 +52,8 @@ namespace Utils
 			}
 			else if (currentSection == Section::Points) {
 				std::istringstream iss(line);
-				// Get x, y, z, r, g, b
-				for (int i = 0; i < dimensions + 3/*3 channl color*/; ++i) {
+				// Get x, y, z, r, g, b, nx, ny, nz
+				for (int i = 0; i < 9; ++i) {
 					iss >> value;
 					res.points.push_back(value);
 				}
