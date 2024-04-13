@@ -3,72 +3,95 @@
 #include <filesystem>
 #include <fstream>
 #include "webgpu.h"
+#include "ObjLoader.h"
+#include "MeshDefs.h"
+
+struct Shape
+{
+	std::vector<InterleavedVertex> points;
+};
 
 struct Object
 {
-	std::vector<float> points;
-	std::vector<uint16_t> indices;
+	std::vector<Shape> shapes;
 };
+
+namespace
+{
+	std::optional<Object> LoadGeometryObj_(std::filesystem::path const& path)
+	{
+		tinyobj::ObjReader reader;
+		if (!reader.ParseFromFile(path.string()))
+		{
+			if(!reader.Error().empty())	std::cout << "TinyObjReader: " << reader.Error() << std::endl;
+			return std::nullopt;
+		}
+
+		if (!reader.Warning().empty()) std::cout << "TinyObjReader: " << reader.Warning() << "\n";
+
+		auto const& attrib = reader.GetAttrib();
+		auto const& shapes = reader.GetShapes();
+		//auto const& materials = reader.GetMaterials();
+
+		size_t numIndices = 0;
+		for (auto const& shape : shapes)
+		{
+			numIndices += shape.mesh.indices.size();
+		}
+
+		Object result;
+		//Loop over shapes
+		for (size_t shapeIndex = 0; shapeIndex < shapes.size(); shapeIndex++) {
+			Shape shape;
+			size_t indexOffset = 0;
+			//Loop over faces
+			for (size_t faceIndex = 0; faceIndex < shapes[shapeIndex].mesh.num_face_vertices.size(); faceIndex++) {
+				size_t numVerticesInFace = (size_t)(shapes[shapeIndex].mesh.num_face_vertices[faceIndex]);
+
+				//Loop over vertices in the face
+				for (size_t vertexIndex = 0; vertexIndex < numVerticesInFace; vertexIndex++) {
+					tinyobj::index_t idx = shapes[shapeIndex].mesh.indices[indexOffset + vertexIndex];
+
+					InterleavedVertex vertex;
+					vertex.x = attrib.vertices[3 * (size_t)(idx.vertex_index) + 0];
+					vertex.y = -attrib.vertices[3 * (size_t)(idx.vertex_index) + 2];
+					vertex.z = attrib.vertices[3 * (size_t)(idx.vertex_index) + 1]; //obj file format specifies +Y as up, we use +Z
+
+					if (idx.normal_index >= 0) {
+						vertex.nx = attrib.normals[3 * (size_t)(idx.normal_index) + 0];
+						vertex.ny = -attrib.normals[3 * (size_t)(idx.normal_index) + 2]; //obj file format specifies +Y as up, we use +Z
+						vertex.nz = attrib.normals[3 * (size_t)(idx.normal_index) + 1];
+					}
+
+					vertex.r = attrib.colors[3 * (size_t)(idx.vertex_index) + 0];
+					vertex.g = attrib.colors[3 * (size_t)(idx.vertex_index) + 1];
+					vertex.b = attrib.colors[3 * (size_t)(idx.vertex_index) + 2];
+					shape.points.push_back(vertex);
+				}
+				indexOffset += numVerticesInFace;
+			}
+
+			result.shapes.push_back(shape);
+		}
+
+		return result;
+	}
+
+}//Anonymous namespace
 
 namespace Utils
 {
 	std::optional<Object> LoadGeometry(std::filesystem::path const& path)
 	{
-		std::ifstream file(path);
-		if (!file.is_open()) return std::nullopt;
-
-		Object res;
-
-		enum class Section {
-			None,
-			Points,
-			Indices
-		};
-
-		Section currentSection = Section::None;
-
-		float value;
-		uint16_t index;
-		std::string line;
-
-		while (!file.eof())
+		if (path.extension() == ".obj")
 		{
-			getline(file, line);
-
-			if (!line.empty() && line.back() == '\r')
-			{
-				line.pop_back();
-			}
-
-			if (line == "[points]") {
-				currentSection = Section::Points;
-			}
-			else if (line == "[indices]")
-			{
-				currentSection = Section::Indices;
-			}
-			else if (line[0] == '#' || line.empty()) {
-				// Do nothing, this is a comment
-			}
-			else if (currentSection == Section::Points) {
-				std::istringstream iss(line);
-				// Get x, y, z, r, g, b, nx, ny, nz
-				for (int i = 0; i < 9; ++i) {
-					iss >> value;
-					res.points.push_back(value);
-				}
-			}
-			else if (currentSection == Section::Indices) {
-				std::istringstream iss(line);
-				// Get corners #0 #1 and #2
-				for (int i = 0; i < 3; ++i) {
-					iss >> index;
-					res.indices.push_back(index);
-				}
-			}
+			return LoadGeometryObj_(path);
 		}
-
-		return res;
+		else
+		{
+			std::cout << "Unhandled file type: " << path << std::endl;
+			return std::nullopt;
+		}
 	}
 
 	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)
