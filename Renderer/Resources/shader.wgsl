@@ -20,6 +20,7 @@ struct Uniforms {
 
 //variable sits within the uniform address space
 @group(0) @binding(0) var<uniform> uUniforms: Uniforms;
+@group(0) @binding(1) var gradientTexture: texture_2d<f32>;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
@@ -32,6 +33,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+	let texColor = textureLoad(gradientTexture, vec2i(in.position.xy), 0).rgb;
+
 	let normal = normalize(in.normal);
 
 	let lightColor1 = vec3f(1.0, 0.9, 0.6);
@@ -41,7 +44,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let shading1 = max(0.0, dot(lightDirection1, normal));
 	let shading2 = max(0.0, dot(lightDirection2, normal));
 	let shading = shading1 * lightColor1 + shading2 * lightColor2;
-	let color = in.color * shading;
+	let color = texColor * shading;
 
 	// We apply a gamma-correction to the color
 	// We need to convert our input sRGB color into linear before the target

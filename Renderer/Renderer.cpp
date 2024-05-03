@@ -7,6 +7,7 @@
 #include <array>
 #include "MathDefs.h"
 #include "MeshDefs.h"
+#include "Buffer.h"
 
 class Window
 {
@@ -54,6 +55,50 @@ uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
+
+class Texture {
+public:
+	Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags, wgpu::TextureFormat format, wgpu::Device device);
+	~Texture();
+
+	inline wgpu::Texture Get() const;
+	inline wgpu::Extent3D Extents() const;
+	inline wgpu::TextureFormat Format() const;
+
+private:
+	wgpu::Texture _handle;
+	wgpu::Extent3D _extents;
+	wgpu::TextureFormat _format;
+};
+
+Texture::Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags, wgpu::TextureFormat format, wgpu::Device device)
+	: _handle(nullptr)
+	, _extents(extents)
+	, _format(format)
+{
+	wgpu::TextureDescriptor desc;
+	desc.dimension = dimension;
+	desc.size = extents;
+	desc.mipLevelCount = 1;
+	desc.sampleCount = 1;
+	desc.format = format;
+	desc.usage = usageFlags;
+	desc.viewFormatCount = 1;
+	desc.viewFormats = (WGPUTextureFormat*)&_format;
+
+	_handle = device.createTexture(desc);
+}
+
+Texture::~Texture() {
+	if (_handle) {
+		_handle.destroy();
+		_handle.release();
+	}
+}
+
+inline wgpu::Texture Texture::Get() const { return _handle; }
+inline wgpu::Extent3D Texture::Extents() const { return _extents; }
+inline wgpu::TextureFormat Texture::Format() const { return _format; }
 
 int main()
 {
@@ -112,6 +157,7 @@ int main()
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
 		requiredDeviceLimits.limits.maxTextureArrayLayers = 1;
+		requiredDeviceLimits.limits.maxSampledTexturesPerShaderStage = 1;
 
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
@@ -171,21 +217,11 @@ int main()
 			.time{1.0f}
 		};
 
-		//Unused right now
-		Uniforms uniform2
-		{
-			.color{ 0.0f, 1.0f, 0.4f, 1.0f},
-			.time{-1.0f}
-		};
-
-		//Create uniform buffer
-		wgpu::BufferDescriptor uniformBufferDesc{};
-		// The buffer will contain 2 values for the uniforms plus the space in between
-		// (stride = sizeof(Uniforms) + spacing)
-		uniformBufferDesc.size = uniformStride + sizeof(Uniforms);
-		uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-		uniformBufferDesc.mappedAtCreation = false;
-		wgpu::Buffer uniformBuffer = device.createBuffer(uniformBufferDesc);
+		Gfx::Buffer uniformBuffer(
+			uniformStride + sizeof(Uniforms),
+			wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+			"Uniform Buffer",
+			device);
 
 		wgpu::TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 		if (swapChainFormat == wgpu::TextureFormat::Undefined) swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
@@ -229,32 +265,88 @@ int main()
 		fragmentState.targetCount = 1;
 		fragmentState.targets = &colorTarget;
 
-		//binding layout
-		wgpu::BindGroupLayoutEntry bindingLayout = wgpu::Default;
-		bindingLayout.binding = 0; //slot id
-		bindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
-		bindingLayout.buffer.type = wgpu::BufferBindingType::Uniform;
-		bindingLayout.buffer.minBindingSize = sizeof(Uniforms);
-		bindingLayout.buffer.hasDynamicOffset = true; //Dynamic Buffer
+		Texture texture(wgpu::TextureDimension::_2D, { 256,256,1 },
+			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+			wgpu::TextureFormat::RGBA8Unorm,
+			device);
+
+		//Fake image data
+		std::vector<uint8_t> pixels(4 * texture.Extents().width * texture.Extents().height);
+		for (uint32_t i = 0; i < texture.Extents().width; i++)
+		{
+			for (uint32_t j = 0; j < texture.Extents().height; j++)
+			{
+				uint8_t* p = &pixels[4 * (j * texture.Extents().width + i)];
+				//rgba
+				p[0] = (uint8_t)i;
+				p[1] = (uint8_t)j;
+				p[2] = 128;
+				p[3] = 255;
+			}
+		}
+
+		//Describe and upload to gpu
+		wgpu::ImageCopyTexture destination;
+		destination.texture = texture.Get();
+		destination.mipLevel = 0;
+		destination.origin = { 0, 0, 0 };
+		destination.aspect = wgpu::TextureAspect::All;
+
+		wgpu::TextureDataLayout source;
+		source.offset = 0;
+		source.bytesPerRow = 4 * texture.Extents().width;
+		source.rowsPerImage = texture.Extents().height;
+		queue.writeTexture(destination, pixels.data(), pixels.size(), source, texture.Extents());
+
+		//Textureview
+		wgpu::TextureViewDescriptor textureViewDesc;
+		textureViewDesc.aspect = wgpu::TextureAspect::All;
+		textureViewDesc.baseArrayLayer = 0;
+		textureViewDesc.arrayLayerCount = 1;
+		textureViewDesc.baseMipLevel = 0;
+		textureViewDesc.mipLevelCount = 1;
+		textureViewDesc.dimension = wgpu::TextureViewDimension::_2D;
+		textureViewDesc.format = texture.Format();
+		wgpu::TextureView textureView = texture.Get().createView(textureViewDesc);
+
+		//Binding layouts
+		std::vector<wgpu::BindGroupLayoutEntry> bindingLayoutEntries(2, wgpu::Default);
+
+		wgpu::BindGroupLayoutEntry& uniformBindingLayout = bindingLayoutEntries[0];
+		uniformBindingLayout.binding = 0; //slot id
+		uniformBindingLayout.visibility = wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment;
+		uniformBindingLayout.buffer.type = wgpu::BufferBindingType::Uniform;
+		uniformBindingLayout.buffer.minBindingSize = sizeof(Uniforms);
+		uniformBindingLayout.buffer.hasDynamicOffset = true; //Dynamic Buffer
+
+		wgpu::BindGroupLayoutEntry& textureBindingLayout = bindingLayoutEntries[1];
+		textureBindingLayout.binding = 1;
+		textureBindingLayout.visibility = wgpu::ShaderStage::Fragment;
+		textureBindingLayout.texture.sampleType = wgpu::TextureSampleType::Float;
+		textureBindingLayout.texture.viewDimension = wgpu::TextureViewDimension::_2D;
 
 		//bind group layout
 		wgpu::BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-		bindGroupLayoutDesc.entryCount = 1;
-		bindGroupLayoutDesc.entries = &bindingLayout;
+		bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();
+		bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
 		wgpu::BindGroupLayout bindGroupLayout = device.createBindGroupLayout(bindGroupLayoutDesc);
 
 		//actual bind group
-		wgpu::BindGroupEntry binding{};
-		binding.binding = 0; //Slot id
-		binding.buffer = uniformBuffer;
-		binding.offset = 0;
-		binding.size = sizeof(Uniforms);
+		std::vector<wgpu::BindGroupEntry> bindings{ 2 };
+		wgpu::BindGroupEntry& uniformBinding = bindings[0];
+		uniformBinding.binding = 0; //Slot id
+		uniformBinding.buffer = uniformBuffer.Get();
+		uniformBinding.offset = 0;
+		uniformBinding.size = sizeof(Uniforms);
+
+		wgpu::BindGroupEntry& textureBinding = bindings[1];
+		textureBinding.binding = 1;
+		textureBinding.textureView = textureView;
 
 		wgpu::BindGroupDescriptor bindingDesc{};
 		bindingDesc.layout = bindGroupLayout;
 		bindingDesc.entryCount = bindGroupLayoutDesc.entryCount;
-		bindingDesc.entries = &binding;
-		bindingDesc.entries = &binding;
+		bindingDesc.entries = bindings.data();
 		wgpu::BindGroup bindGroup = device.createBindGroup(bindingDesc);
 
 		//InterleavedVertex attributes
@@ -286,7 +378,7 @@ int main()
 		pipelineDesc.vertex.constantCount = 0;
 		pipelineDesc.vertex.constants = nullptr;
 
-		pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
+		pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleStrip;
 		pipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 		pipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
 		pipelineDesc.primitive.cullMode = wgpu::CullMode::None;
@@ -320,16 +412,8 @@ int main()
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
 		//Create depth texture and depth texture view
-		wgpu::TextureDescriptor depthTextureDesc;
-		depthTextureDesc.dimension = wgpu::TextureDimension::_2D;
-		depthTextureDesc.format = depthTextureFormat;
-		depthTextureDesc.mipLevelCount = 1;
-		depthTextureDesc.sampleCount = 1;
-		depthTextureDesc.size = { swapChainDesc.width, swapChainDesc.height, 1 };
-		depthTextureDesc.usage = wgpu::TextureUsage::RenderAttachment;
-		depthTextureDesc.viewFormatCount = 1;
-		depthTextureDesc.viewFormats = (WGPUTextureFormat*)&depthTextureFormat;
-		wgpu::Texture depthTexture = device.createTexture(depthTextureDesc);
+		Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
+			wgpu::TextureUsage::RenderAttachment, depthTextureFormat, device);
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;
 		depthTextureViewDesc.aspect = wgpu::TextureAspect::DepthOnly;
@@ -339,9 +423,7 @@ int main()
 		depthTextureViewDesc.mipLevelCount = 1;
 		depthTextureViewDesc.dimension = wgpu::TextureViewDimension::_2D;
 		depthTextureViewDesc.format = depthTextureFormat;
-		wgpu::TextureView depthTextureView = depthTexture.createView(depthTextureViewDesc);
-
-
+		wgpu::TextureView depthTextureView = depthTexture.Get().createView(depthTextureViewDesc);
 
 		//Commented for now until we support both 2d and 3d
 		////Load object
@@ -386,14 +468,13 @@ int main()
 
 		Object pyramid = *oPyramid;
 		//Create pyramid vertex buffer
-		wgpu::BufferDescriptor vertexBufferDesc2;
-		vertexBufferDesc2.size = pyramid.shapes[0].points.size() * sizeof(InterleavedVertex);
-		vertexBufferDesc2.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
-		vertexBufferDesc2.mappedAtCreation = false;
-		wgpu::Buffer vertexBuffer2 = device.createBuffer(vertexBufferDesc2);
-
+		Gfx::Buffer vertexBuffer2(
+			(uint32_t)pyramid.shapes[0].points.size() * sizeof(InterleavedVertex),
+			wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex,
+			"vertexBuffer2",
+			device);
 		//upload vertex data to gpu
-		queue.writeBuffer(vertexBuffer2, 0, pyramid.shapes[0].points.data(), vertexBufferDesc2.size);
+		vertexBuffer2.EnqueueCopy(pyramid.shapes[0].points.data(), 0, queue);
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -401,24 +482,11 @@ int main()
 		for (uint8_t i = 0; i < k_bufferSize; ++i) numbers[i] = i;
 
 		//Create Buffer
-		wgpu::BufferDescriptor bufferDesc1;
-		bufferDesc1.nextInChain = nullptr;
-		bufferDesc1.label = "buffer1";
-		bufferDesc1.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc;
-		bufferDesc1.size = k_bufferSize;
-		bufferDesc1.mappedAtCreation = false;
-		wgpu::Buffer buffer1 = device.createBuffer(bufferDesc1);
-
-		wgpu::BufferDescriptor bufferDesc2;
-		bufferDesc2.nextInChain = nullptr;
-		bufferDesc2.label = "buffer2";
-		bufferDesc2.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead;
-		bufferDesc2.size = k_bufferSize;
-		bufferDesc2.mappedAtCreation = false;
-		wgpu::Buffer buffer2 = device.createBuffer(bufferDesc2);
+		Gfx::Buffer buffer1{ k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc, "buffer1", device };
+		Gfx::Buffer buffer2{ k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead, "buffer2", device };
 
 		//Add instruction to copy to buffer
-		queue.writeBuffer(buffer1, 0, numbers.data(), numbers.size());
+		buffer1.EnqueueCopy(numbers.data(), 0, queue);
 
 		std::cout << "Sending buffer copy operation... " << std::endl;
 
@@ -426,7 +494,7 @@ int main()
 		wgpu::CommandEncoderDescriptor encoderDesc1{};
 		encoderDesc1.label = "Default Command Encoder";
 		wgpu::CommandEncoder copyEncoder = device.createCommandEncoder(encoderDesc1);
-		copyEncoder.copyBufferToBuffer(buffer1, 0, buffer2, 0, k_bufferSize);
+		copyEncoder.copyBufferToBuffer(buffer1.Get(), 0, buffer2.Get(), 0, k_bufferSize);
 
 		wgpu::CommandBufferDescriptor commandBufferDescriptor1{};
 		commandBufferDescriptor1.label = "Default Command Buffer";
@@ -452,7 +520,7 @@ int main()
 			//Once we are done with this data, unmap the buffer
 			pContext->buffer.unmap();
 		};
-		wgpuBufferMapAsync(buffer2, wgpu::MapMode::Read, 0, k_bufferSize, onBuffer2Mapped, nullptr);
+		wgpuBufferMapAsync(buffer2.Get(), wgpu::MapMode::Read, 0, k_bufferSize, onBuffer2Mapped, nullptr);
 
 		while (!window.ShouldClose())
 		{
@@ -474,11 +542,9 @@ int main()
 			rotation1 = glm::rotate(Mat4f(1.0f), angle1, Vec3f(0.0f, 0.0f, 1.0f));
 			uniform.model = rotation1 * translation1 * scale;
 
-			//Upload uniforms
+			//EnqueueCopy uniforms
 			uniform.time = static_cast<float>(glfwGetTime());
-			queue.writeBuffer(uniformBuffer, 0, &uniform, sizeof(Uniforms));
-			//Second dynamic uniform
-			queue.writeBuffer(uniformBuffer, uniformStride, &uniform2, sizeof(Uniforms));
+			uniformBuffer.EnqueueCopy(&uniform, sizeof(Uniforms), 0, queue);
 
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
@@ -522,7 +588,7 @@ int main()
 			//renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
 
 			//pyramid draw
-			renderPassEncoder.setVertexBuffer(0, vertexBuffer2, 0, pyramid.shapes[0].points.size() * sizeof(InterleavedVertex));
+			renderPassEncoder.setVertexBuffer(0, vertexBuffer2.Get(), 0, pyramid.shapes[0].points.size() * sizeof(InterleavedVertex));
 			renderPassEncoder.draw((uint32_t)pyramid.shapes[0].points.size(), 1, 0, 0);
 
 			renderPassEncoder.end(); // clears screen
@@ -549,14 +615,7 @@ int main()
 		}
 
 		//TODO raii webgpu generator
-		buffer1.destroy();
-		buffer1.release();
-		buffer2.destroy();
-		buffer2.release();
-
 		depthTextureView.release();
-		depthTexture.destroy();
-		depthTexture.release();
 
 		swapchain.release();
 		queue.release();
