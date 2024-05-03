@@ -8,6 +8,7 @@
 #include "MathDefs.h"
 #include "MeshDefs.h"
 #include "Buffer.h"
+#include "Texture.h"
 
 class Window
 {
@@ -55,50 +56,6 @@ uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
-
-class Texture {
-public:
-	Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags, wgpu::TextureFormat format, wgpu::Device device);
-	~Texture();
-
-	inline wgpu::Texture Get() const;
-	inline wgpu::Extent3D Extents() const;
-	inline wgpu::TextureFormat Format() const;
-
-private:
-	wgpu::Texture _handle;
-	wgpu::Extent3D _extents;
-	wgpu::TextureFormat _format;
-};
-
-Texture::Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags, wgpu::TextureFormat format, wgpu::Device device)
-	: _handle(nullptr)
-	, _extents(extents)
-	, _format(format)
-{
-	wgpu::TextureDescriptor desc;
-	desc.dimension = dimension;
-	desc.size = extents;
-	desc.mipLevelCount = 1;
-	desc.sampleCount = 1;
-	desc.format = format;
-	desc.usage = usageFlags;
-	desc.viewFormatCount = 1;
-	desc.viewFormats = (WGPUTextureFormat*)&_format;
-
-	_handle = device.createTexture(desc);
-}
-
-Texture::~Texture() {
-	if (_handle) {
-		_handle.destroy();
-		_handle.release();
-	}
-}
-
-inline wgpu::Texture Texture::Get() const { return _handle; }
-inline wgpu::Extent3D Texture::Extents() const { return _extents; }
-inline wgpu::TextureFormat Texture::Format() const { return _format; }
 
 int main()
 {
@@ -265,7 +222,7 @@ int main()
 		fragmentState.targetCount = 1;
 		fragmentState.targets = &colorTarget;
 
-		Texture texture(wgpu::TextureDimension::_2D, { 256,256,1 },
+		Gfx::Texture texture(wgpu::TextureDimension::_2D, { 256,256,1 },
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
 			wgpu::TextureFormat::RGBA8Unorm,
 			device);
@@ -412,7 +369,7 @@ int main()
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
 
 		//Create depth texture and depth texture view
-		Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
+		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
 			wgpu::TextureUsage::RenderAttachment, depthTextureFormat, device);
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;
