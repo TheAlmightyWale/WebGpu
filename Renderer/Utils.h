@@ -5,6 +5,7 @@
 #include "webgpu.h"
 #include "ObjLoader.h"
 #include "MeshDefs.h"
+#include "ImageLoader.h"
 
 struct Shape
 {
@@ -16,8 +17,21 @@ struct Object
 	std::vector<Shape> shapes;
 };
 
+struct TextureResource
+{
+	uint32_t width;
+	uint32_t height;
+	uint8_t channelDepth;
+	uint8_t numChannels;
+	std::vector<std::byte> data;
+	std::string label;
+};
+
+using TextureResourceMap = std::unordered_map<std::string, TextureResource>;
+
 namespace
 {
+
 	std::optional<Object> LoadGeometryObj_(std::filesystem::path const& path)
 	{
 		tinyobj::ObjReader reader;
@@ -92,6 +106,30 @@ namespace Utils
 			std::cout << "Unhandled file type: " << path << std::endl;
 			return std::nullopt;
 		}
+	}
+
+	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path)
+	{
+		TextureResource res;
+		int x, y, n, ok;
+		ok = stbi_info(path.generic_string().c_str(), &x, &y, &n);
+
+		if (!ok)
+		{
+			std::cout << "Failed to Load Texture Resource at" << path << "\n" << "Reason: " << stbi_failure_reason() << "\n";
+			return std::nullopt;
+		}
+
+		stbi_uc* pData = stbi_load(path.generic_string().c_str(), &x, &y, &n, 0);
+		res.height = (uint32_t)y;
+		res.width = (uint32_t)x;
+		res.channelDepth = 8;// stbi uses 8bit channels
+		res.numChannels = (uint8_t)n;
+		uint32_t dataSizeBytes = (uint32_t)(x * y * n);
+		res.data.reserve(dataSizeBytes);
+		std::copy((std::byte*)pData, (std::byte*)pData + dataSizeBytes, res.data.data());
+
+		return res;
 	}
 
 	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)

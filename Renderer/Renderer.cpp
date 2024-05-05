@@ -9,6 +9,7 @@
 #include "MeshDefs.h"
 #include "Buffer.h"
 #include "Texture.h"
+#include "Quad.h"
 
 class Window
 {
@@ -44,6 +45,12 @@ struct Uniforms
 	Vec4f color;
 	float time;
 	float _pad[3]; //struct must be 16byte aligned
+};
+
+struct QuadTransform
+{
+	Vec3f position;
+	Vec2f scale;
 };
 
 static_assert(sizeof(Uniforms) % 16 == 0);
@@ -115,6 +122,7 @@ int main()
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
 		requiredDeviceLimits.limits.maxTextureArrayLayers = 1;
 		requiredDeviceLimits.limits.maxSampledTexturesPerShaderStage = 1;
+		requiredDeviceLimits.limits.maxSamplersPerShaderStage = 1;
 
 		//Must be set even if we don't use em yet
 		requiredDeviceLimits.limits.minStorageBufferOffsetAlignment = adapterLimits.limits.minStorageBufferOffsetAlignment;
@@ -213,6 +221,23 @@ int main()
 			return -1;
 		}
 		wgpu::ShaderModule shaderModule = *oShaderModule;
+
+		auto oQuadShaderModule = Utils::LoadShaderModule(ASSETS_DIR "/quadShader.wgsl", device);
+		if (!oQuadShaderModule)
+		{
+			std::cout << "Failed to create Quad Shader Module" << std::endl;
+			return -1;
+		}
+		wgpu::ShaderModule quadShaderModule = *oQuadShaderModule;
+
+		wgpu::FragmentState quadFragmentState{};
+		quadFragmentState.module = quadShaderModule;
+		quadFragmentState.constantCount = 0;
+		quadFragmentState.constants = nullptr;
+		quadFragmentState.entryPoint = "fs_main";
+		quadFragmentState.targetCount = 1;
+		quadFragmentState.targets = &colorTarget;
+
 
 		wgpu::FragmentState fragmentState{};
 		fragmentState.module = shaderModule;
@@ -335,7 +360,7 @@ int main()
 		pipelineDesc.vertex.constantCount = 0;
 		pipelineDesc.vertex.constants = nullptr;
 
-		pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleStrip;
+		pipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
 		pipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 		pipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
 		pipelineDesc.primitive.cullMode = wgpu::CullMode::None;
@@ -367,6 +392,131 @@ int main()
 		pipelineDesc.layout = pipelineLayout;
 
 		wgpu::RenderPipeline pipeline = device.createRenderPipeline(pipelineDesc);
+
+		//Default texture load
+		TextureResource defaultRes = *Utils::LoadTexture(ASSETS_DIR "/default.png");
+		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
+			{defaultRes.width, defaultRes.height, 1},
+			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+			wgpu::TextureFormat::RGBA8Uint,
+			device };
+
+		wgpu::TextureViewDescriptor defaultViewDesc;
+		defaultViewDesc.aspect = wgpu::TextureAspect::All;
+		defaultViewDesc.baseArrayLayer = 0;
+		defaultViewDesc.arrayLayerCount = 1;
+		defaultViewDesc.baseMipLevel = 0;
+		defaultViewDesc.mipLevelCount = 1;
+		defaultViewDesc.dimension = wgpu::TextureViewDimension::_2D;
+		defaultViewDesc.format = defaultSprite.Format();
+		wgpu::TextureView defaultView = defaultSprite.Get().createView(defaultViewDesc);
+
+		wgpu::SamplerDescriptor spriteSamplerDesc;
+		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
+		spriteSamplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
+		spriteSamplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
+		spriteSamplerDesc.magFilter = wgpu::FilterMode::Linear;
+		spriteSamplerDesc.minFilter = wgpu::FilterMode::Linear;
+		spriteSamplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Linear;
+		spriteSamplerDesc.lodMinClamp = 0.0f;
+		spriteSamplerDesc.lodMaxClamp = 1.0f;
+		spriteSamplerDesc.compare = wgpu::CompareFunction::Undefined;
+		spriteSamplerDesc.maxAnisotropy = 1;
+		wgpu::Sampler spriteSampler = device.createSampler(spriteSamplerDesc);
+		
+		//Placeholder Quad transform
+		QuadTransform transform
+		{
+			{1.0f, 1.0f, 1.0f},
+			{1.0f, 1.0f}
+		};
+
+		Gfx::Buffer transformBuffer{ sizeof(QuadTransform), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Tansform Buffer", device };
+
+		//Quad Pipeline start
+		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+		constexpr uint32_t k_QuadPipelineBindingCount = 3;
+		std::array<wgpu::BindGroupLayoutEntry, k_QuadPipelineBindingCount> quadBindEntryLayouts;
+		wgpu::BindGroupLayoutEntry& quadUniformBinding = quadBindEntryLayouts[0];
+		quadUniformBinding.binding = 0; //Slot id
+		quadUniformBinding.visibility = wgpu::ShaderStage::Vertex;
+		quadUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
+		quadUniformBinding.buffer.minBindingSize = sizeof(QuadTransform);
+		quadUniformBinding.buffer.hasDynamicOffset = true;
+
+		wgpu::BindGroupLayoutEntry& quadTextureBinding = quadBindEntryLayouts[1];
+		quadTextureBinding.binding = 1;
+		quadTextureBinding.visibility = wgpu::ShaderStage::Fragment;
+		quadTextureBinding.texture.sampleType = wgpu::TextureSampleType::Float;
+		quadTextureBinding.texture.viewDimension = wgpu::TextureViewDimension::_2D;
+
+		wgpu::BindGroupLayoutEntry& samplerBinding = quadBindEntryLayouts[2];
+		samplerBinding.binding = 2;
+		samplerBinding.visibility = wgpu::ShaderStage::Fragment;
+		samplerBinding.sampler.type = wgpu::SamplerBindingType::Filtering;
+
+		wgpu::BindGroupLayoutDescriptor quadBindLayoutDesc;
+		quadBindLayoutDesc.entryCount = 3;
+		quadBindLayoutDesc.entries = quadBindEntryLayouts.data();
+		wgpu::BindGroupLayout quadBindLayout = device.createBindGroupLayout(quadBindLayoutDesc);
+
+		std::array<wgpu::BindGroupEntry, k_QuadPipelineBindingCount> quadBindEntries;
+		wgpu::BindGroupEntry& quadUniformBind = quadBindEntries[0];
+		quadUniformBind.binding = 0;
+		quadUniformBind.buffer = transformBuffer.Get();
+		quadUniformBind.offset = 0;
+		quadUniformBind.size = sizeof(QuadTransform);
+
+		wgpu::BindGroupEntry& quadTextureBind = quadBindEntries[1];
+		quadTextureBind.binding = 1;
+		quadTextureBind.textureView = defaultView;
+
+		wgpu::BindGroupEntry& quadSamplerBind = quadBindEntries[2];
+		quadSamplerBind.binding = 2;
+		quadSamplerBind.sampler = spriteSampler;
+
+		wgpu::PipelineLayoutDescriptor quadLayoutDescriptor;
+		quadLayoutDescriptor.bindGroupLayoutCount = 1;
+		quadLayoutDescriptor.bindGroupLayouts = (WGPUBindGroupLayout*)&quadBindLayout;
+		quadLayoutDescriptor.label = "Quad layout";
+		wgpu::PipelineLayout quadPipelineLayout = device.createPipelineLayout(quadLayoutDescriptor);
+
+		wgpu::RenderPipelineDescriptor quadPipelineDesc;
+		quadPipelineDesc.depthStencil = &depthStencilState;
+		quadPipelineDesc.fragment = &quadFragmentState;
+
+		quadPipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleStrip;
+		quadPipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
+		quadPipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
+		quadPipelineDesc.primitive.cullMode = wgpu::CullMode::None;
+
+		std::vector<wgpu::VertexAttribute> quadVertexAttributes{ 2 };
+		quadVertexAttributes[0].format = wgpu::VertexFormat::Float32x3;
+		quadVertexAttributes[0].offset = 0;
+		quadVertexAttributes[0].shaderLocation = 0;
+		quadVertexAttributes[1].format = wgpu::VertexFormat::Float32x2;
+		quadVertexAttributes[1].offset = offsetof(Gfx::QuadVertex, u);
+		quadVertexAttributes[1].shaderLocation = 1;
+
+		wgpu::VertexBufferLayout quadVertexBufferLayout;
+		quadVertexBufferLayout.attributeCount = (uint32_t)quadVertexAttributes.size();
+		quadVertexBufferLayout.attributes = quadVertexAttributes.data();
+		quadVertexBufferLayout.arrayStride = sizeof(Gfx::QuadVertex);
+		quadVertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
+
+		quadPipelineDesc.vertex.bufferCount = 1;
+		quadPipelineDesc.vertex.buffers = &quadVertexBufferLayout;
+		quadPipelineDesc.vertex.module = quadShaderModule;
+		quadPipelineDesc.vertex.entryPoint = "vs_main";
+		quadPipelineDesc.vertex.constantCount = 0;
+		quadPipelineDesc.vertex.constants = nullptr;
+
+		quadPipelineDesc.multisample.count = 1;
+		quadPipelineDesc.multisample.mask = ~0u; //all bits on
+		quadPipelineDesc.multisample.alphaToCoverageEnabled = false;
+
+		quadPipelineDesc.label = "Quad Pipeline";
+		wgpu::RenderPipeline quadPipeline = device.createRenderPipeline(quadPipelineDesc);
 
 		//Create depth texture and depth texture view
 		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
