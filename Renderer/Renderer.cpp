@@ -11,6 +11,9 @@
 #include "Texture.h"
 #include "Quad.h"
 
+constexpr uint32_t k_screenWidth = 800;
+constexpr uint32_t k_screenHeight = 600;
+
 class Window
 {
 public:
@@ -18,7 +21,7 @@ public:
 	{
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		pWindow = glfwCreateWindow(800, 600, "WebGpu", nullptr, nullptr);
+		pWindow = glfwCreateWindow(k_screenWidth, k_screenHeight, "WebGpu", nullptr, nullptr);
 	}
 
 	Window(Window const&) = delete;
@@ -46,23 +49,29 @@ struct Uniforms
 	float time;
 	float _pad[3]; //struct must be 16byte aligned
 };
+static_assert(sizeof(Uniforms) % 16 == 0);
+
+struct CamUniforms
+{
+	Vec2f position;
+	Vec2f extents;
+};
+static_assert(sizeof(CamUniforms) % 16 == 0);
 
 struct QuadTransform
 {
 	Vec3f position;
+	float _pad;
 	Vec2f scale;
+	float _pad2[2]; //Each member must be 16 byte aligned, min 32 bytes
 };
-
-static_assert(sizeof(Uniforms) % 16 == 0);
+static_assert(sizeof(QuadTransform) % 16 == 0);
 
 uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
 	uint32_t divideAndCeil = value / multiple + (value % multiple == 0 ? 0 : 1);
 	return multiple * divideAndCeil;
 }
-
-constexpr uint32_t k_screenWidth = 800;
-constexpr uint32_t k_screenHeight = 600;
 
 int main()
 {
@@ -115,7 +124,7 @@ int main()
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 6; // everything other than default position needs to be under this max
 		requiredDeviceLimits.limits.maxBindGroups = 1;
-		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 1;
+		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 2;
 		requiredDeviceLimits.limits.maxUniformBufferBindingSize = sizeof(Uniforms);
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
@@ -198,6 +207,14 @@ int main()
 		swapChainDesc.presentMode = wgpu::PresentMode::Fifo;
 		swapChainDesc.label = "Swapchain";
 		wgpu::SwapChain swapchain = device.createSwapChain(surface, swapChainDesc);
+
+		//Quad cam uniforms, to be updated when swap chain is resized
+		CamUniforms quadCam;
+		quadCam.position = Vec2f{ 0.5f, 0.5f };
+		quadCam.extents = Vec2f{ (float)k_screenWidth, (float)k_screenHeight };
+
+		Gfx::Buffer camBuffer{ sizeof(CamUniforms), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Camera Uniforms", device};
+		camBuffer.EnqueueCopy(&quadCam, 0, queue);
 
 		std::cout << "Swapchain: " << swapchain << "\n";
 
@@ -398,18 +415,9 @@ int main()
 		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
 			{defaultRes.width, defaultRes.height, 1},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
-			wgpu::TextureFormat::RGBA8Uint,
+			wgpu::TextureFormat::RGBA8Unorm,
 			device };
-
-		wgpu::TextureViewDescriptor defaultViewDesc;
-		defaultViewDesc.aspect = wgpu::TextureAspect::All;
-		defaultViewDesc.baseArrayLayer = 0;
-		defaultViewDesc.arrayLayerCount = 1;
-		defaultViewDesc.baseMipLevel = 0;
-		defaultViewDesc.mipLevelCount = 1;
-		defaultViewDesc.dimension = wgpu::TextureViewDimension::_2D;
-		defaultViewDesc.format = defaultSprite.Format();
-		wgpu::TextureView defaultView = defaultSprite.Get().createView(defaultViewDesc);
+		defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.SizeBytes(), queue);
 
 		wgpu::SamplerDescriptor spriteSamplerDesc;
 		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -424,25 +432,17 @@ int main()
 		spriteSamplerDesc.maxAnisotropy = 1;
 		wgpu::Sampler spriteSampler = device.createSampler(spriteSamplerDesc);
 		
-		//Placeholder Quad transform
-		QuadTransform transform
-		{
-			{1.0f, 1.0f, 1.0f},
-			{1.0f, 1.0f}
-		};
-
-		Gfx::Buffer transformBuffer{ sizeof(QuadTransform), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Tansform Buffer", device };
 
 		//Quad Pipeline start
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		constexpr uint32_t k_QuadPipelineBindingCount = 3;
+		constexpr uint32_t k_QuadPipelineBindingCount = 4;
 		std::array<wgpu::BindGroupLayoutEntry, k_QuadPipelineBindingCount> quadBindEntryLayouts;
 		wgpu::BindGroupLayoutEntry& quadUniformBinding = quadBindEntryLayouts[0];
 		quadUniformBinding.binding = 0; //Slot id
 		quadUniformBinding.visibility = wgpu::ShaderStage::Vertex;
 		quadUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
 		quadUniformBinding.buffer.minBindingSize = sizeof(QuadTransform);
-		quadUniformBinding.buffer.hasDynamicOffset = true;
+		quadUniformBinding.buffer.hasDynamicOffset = false;
 
 		wgpu::BindGroupLayoutEntry& quadTextureBinding = quadBindEntryLayouts[1];
 		quadTextureBinding.binding = 1;
@@ -455,10 +455,26 @@ int main()
 		samplerBinding.visibility = wgpu::ShaderStage::Fragment;
 		samplerBinding.sampler.type = wgpu::SamplerBindingType::Filtering;
 
+		wgpu::BindGroupLayoutEntry& cameraUniformBinding = quadBindEntryLayouts[3];
+		cameraUniformBinding.binding = 3;
+		cameraUniformBinding.visibility = wgpu::ShaderStage::Vertex;
+		cameraUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
+		cameraUniformBinding.buffer.minBindingSize = sizeof(CamUniforms);
+		cameraUniformBinding.buffer.hasDynamicOffset = false;
+
 		wgpu::BindGroupLayoutDescriptor quadBindLayoutDesc;
-		quadBindLayoutDesc.entryCount = 3;
+		quadBindLayoutDesc.entryCount = k_QuadPipelineBindingCount;
 		quadBindLayoutDesc.entries = quadBindEntryLayouts.data();
 		wgpu::BindGroupLayout quadBindLayout = device.createBindGroupLayout(quadBindLayoutDesc);
+
+		//Placeholder Quad transform
+		QuadTransform transform
+		{
+			{0.f, 0.f, 0.f}, {0},
+			{50.0f, 50.0f}
+		};
+		Gfx::Buffer transformBuffer{ sizeof(QuadTransform), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device };
+		transformBuffer.EnqueueCopy(&transform, 0, queue);
 
 		std::array<wgpu::BindGroupEntry, k_QuadPipelineBindingCount> quadBindEntries;
 		wgpu::BindGroupEntry& quadUniformBind = quadBindEntries[0];
@@ -469,11 +485,23 @@ int main()
 
 		wgpu::BindGroupEntry& quadTextureBind = quadBindEntries[1];
 		quadTextureBind.binding = 1;
-		quadTextureBind.textureView = defaultView;
+		quadTextureBind.textureView = defaultSprite.View();
 
 		wgpu::BindGroupEntry& quadSamplerBind = quadBindEntries[2];
 		quadSamplerBind.binding = 2;
 		quadSamplerBind.sampler = spriteSampler;
+
+		wgpu::BindGroupEntry& quadCamBind = quadBindEntries[3];
+		quadCamBind.binding = 3;
+		quadCamBind.buffer = camBuffer.Get();
+		quadCamBind.offset = 0;
+		quadCamBind.size = sizeof(CamUniforms);
+
+		wgpu::BindGroupDescriptor quadBindingDesc{};
+		quadBindingDesc.layout = quadBindLayout;
+		quadBindingDesc.entryCount = quadBindLayoutDesc.entryCount;
+		quadBindingDesc.entries = quadBindEntries.data();
+		wgpu::BindGroup quadBindGroup = device.createBindGroup(quadBindingDesc);
 
 		wgpu::PipelineLayoutDescriptor quadLayoutDescriptor;
 		quadLayoutDescriptor.bindGroupLayoutCount = 1;
@@ -482,10 +510,11 @@ int main()
 		wgpu::PipelineLayout quadPipelineLayout = device.createPipelineLayout(quadLayoutDescriptor);
 
 		wgpu::RenderPipelineDescriptor quadPipelineDesc;
+		quadPipelineDesc.layout = quadPipelineLayout;
 		quadPipelineDesc.depthStencil = &depthStencilState;
 		quadPipelineDesc.fragment = &quadFragmentState;
 
-		quadPipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleStrip;
+		quadPipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
 		quadPipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
 		quadPipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
 		quadPipelineDesc.primitive.cullMode = wgpu::CullMode::None;
@@ -629,6 +658,13 @@ int main()
 		};
 		wgpuBufferMapAsync(buffer2.Get(), wgpu::MapMode::Read, 0, k_bufferSize, onBuffer2Mapped, nullptr);
 
+		//Quad upload
+		Gfx::Quad quad;
+		Gfx::Buffer quadBuffer{
+			sizeof(Gfx::Quad), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex, "Quad Vertices", device
+		};
+		quadBuffer.EnqueueCopy(quad.vertices.data(), 0, queue);
+
 		while (!window.ShouldClose())
 		{
 			glfwPollEvents();
@@ -679,33 +715,41 @@ int main()
 			renderPassDesc.timestampWrites = nullptr;
 			renderPassDesc.depthStencilAttachment = &rpDepthAttachment;
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
-			wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
-			renderPassEncoder.setPipeline(pipeline);
+			//wgpu::RenderPassEncoder renderPassEncoder = encoder.beginRenderPass(renderPassDesc);
+			//renderPassEncoder.setPipeline(pipeline);
 
-			uint32_t dynamicOffset = 0;
-			renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
-
-			//renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
-			//renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
-			//renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
-
-			////Second draw with differnt uniforms
-			//dynamicOffset = uniformStride;
+			//uint32_t dynamicOffset = 0;
 			//renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
-			//renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
 
-			//pyramid draw
-			renderPassEncoder.setVertexBuffer(0, vertexBuffer2.Get(), 0, pyramid.shapes[0].points.size() * sizeof(InterleavedVertex));
-			renderPassEncoder.draw((uint32_t)pyramid.shapes[0].points.size(), 1, 0, 0);
+			////renderPassEncoder.setVertexBuffer(0, vertexBuffer, 0, object.points.size() * sizeof(float));
+			////renderPassEncoder.setIndexBuffer(indexBuffer, wgpu::IndexFormat::Uint16, 0, object.indices.size() * sizeof(uint16_t));
+			////renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
 
-			renderPassEncoder.end(); // clears screen
-			renderPassEncoder.release();
+			//////Second draw with differnt uniforms
+			////dynamicOffset = uniformStride;
+			////renderPassEncoder.setBindGroup(0, bindGroup, 1, &dynamicOffset);
+			////renderPassEncoder.drawIndexed((uint32_t)object.indices.size(), 1, 0, 0, 0);
+
+			////pyramid draw
+			//renderPassEncoder.setVertexBuffer(0, vertexBuffer2.Get(), 0, pyramid.shapes[0].points.size() * sizeof(InterleavedVertex));
+			//renderPassEncoder.draw((uint32_t)pyramid.shapes[0].points.size(), 1, 0, 0);
+
+			//renderPassEncoder.end(); // clears screen
+			//renderPassEncoder.release();
+
+			wgpu::RenderPassEncoder quadPassEncoder = encoder.beginRenderPass(renderPassDesc);
+			quadPassEncoder.setPipeline(quadPipeline);
+			quadPassEncoder.setBindGroup(0, quadBindGroup, 0, nullptr);
+			quadPassEncoder.setVertexBuffer(0, quadBuffer.Get(), 0, quadBuffer.Size());
+			quadPassEncoder.draw((uint32_t)quad.vertices.size(), 1, 0, 0);
+			quadPassEncoder.end();
+			quadPassEncoder.release();
 
 			wgpu::CommandBufferDescriptor commandBufferDescriptor{};
 			commandBufferDescriptor.label = "Default Command Buffer";
 			wgpu::CommandBuffer commands = encoder.finish(commandBufferDescriptor);
 
-			//std::cout << "Submitting Render Commands \n";
+			//std::cout << "Submitting Upload Commands \n";
 			queue.submit(commands);
 			
 			commands.release();

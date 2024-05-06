@@ -10,7 +10,7 @@ namespace Gfx
 
 	void Buffer::EnqueueCopy(void* pData, uint32_t bufferOffset, wgpu::Queue& queue)
 	{
-		queue.writeBuffer(_handle, bufferOffset, pData, _size);
+		EnqueueCopy(pData, _size, bufferOffset, queue);
 	}
 
 	Buffer::~Buffer()

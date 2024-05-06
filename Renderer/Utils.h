@@ -21,10 +21,12 @@ struct TextureResource
 {
 	uint32_t width;
 	uint32_t height;
-	uint8_t channelDepth;
+	uint8_t channelDepthBytes;
 	uint8_t numChannels;
 	std::vector<std::byte> data;
 	std::string label;
+
+	uint32_t SizeBytes() { return numChannels * width * height * channelDepthBytes; }
 };
 
 using TextureResourceMap = std::unordered_map<std::string, TextureResource>;
@@ -123,11 +125,13 @@ namespace Utils
 		stbi_uc* pData = stbi_load(path.generic_string().c_str(), &x, &y, &n, 0);
 		res.height = (uint32_t)y;
 		res.width = (uint32_t)x;
-		res.channelDepth = 8;// stbi uses 8bit channels
+		res.channelDepthBytes = 1;// stbi uses 8bit channels
 		res.numChannels = (uint8_t)n;
 		uint32_t dataSizeBytes = (uint32_t)(x * y * n);
 		res.data.reserve(dataSizeBytes);
 		std::copy((std::byte*)pData, (std::byte*)pData + dataSizeBytes, res.data.data());
+
+		stbi_image_free(pData);
 
 		return res;
 	}
