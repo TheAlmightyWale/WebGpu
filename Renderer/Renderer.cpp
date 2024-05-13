@@ -10,6 +10,7 @@
 #include "Buffer.h"
 #include "Texture.h"
 #include "Quad.h"
+#include "QuadRenderPipeline.h"
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
@@ -435,37 +436,7 @@ int main()
 
 		//Quad Pipeline start
 		//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-		constexpr uint32_t k_QuadPipelineBindingCount = 4;
-		std::array<wgpu::BindGroupLayoutEntry, k_QuadPipelineBindingCount> quadBindEntryLayouts;
-		wgpu::BindGroupLayoutEntry& quadUniformBinding = quadBindEntryLayouts[0];
-		quadUniformBinding.binding = 0; //Slot id
-		quadUniformBinding.visibility = wgpu::ShaderStage::Vertex;
-		quadUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
-		quadUniformBinding.buffer.minBindingSize = sizeof(QuadTransform);
-		quadUniformBinding.buffer.hasDynamicOffset = false;
-
-		wgpu::BindGroupLayoutEntry& quadTextureBinding = quadBindEntryLayouts[1];
-		quadTextureBinding.binding = 1;
-		quadTextureBinding.visibility = wgpu::ShaderStage::Fragment;
-		quadTextureBinding.texture.sampleType = wgpu::TextureSampleType::Float;
-		quadTextureBinding.texture.viewDimension = wgpu::TextureViewDimension::_2D;
-
-		wgpu::BindGroupLayoutEntry& samplerBinding = quadBindEntryLayouts[2];
-		samplerBinding.binding = 2;
-		samplerBinding.visibility = wgpu::ShaderStage::Fragment;
-		samplerBinding.sampler.type = wgpu::SamplerBindingType::Filtering;
-
-		wgpu::BindGroupLayoutEntry& cameraUniformBinding = quadBindEntryLayouts[3];
-		cameraUniformBinding.binding = 3;
-		cameraUniformBinding.visibility = wgpu::ShaderStage::Vertex;
-		cameraUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
-		cameraUniformBinding.buffer.minBindingSize = sizeof(CamUniforms);
-		cameraUniformBinding.buffer.hasDynamicOffset = false;
-
-		wgpu::BindGroupLayoutDescriptor quadBindLayoutDesc;
-		quadBindLayoutDesc.entryCount = k_QuadPipelineBindingCount;
-		quadBindLayoutDesc.entries = quadBindEntryLayouts.data();
-		wgpu::BindGroupLayout quadBindLayout = device.createBindGroupLayout(quadBindLayoutDesc);
+		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
 		//Placeholder Quad transform
 		QuadTransform transform
@@ -476,76 +447,7 @@ int main()
 		Gfx::Buffer transformBuffer{ sizeof(QuadTransform), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device };
 		transformBuffer.EnqueueCopy(&transform, 0, queue);
 
-		std::array<wgpu::BindGroupEntry, k_QuadPipelineBindingCount> quadBindEntries;
-		wgpu::BindGroupEntry& quadUniformBind = quadBindEntries[0];
-		quadUniformBind.binding = 0;
-		quadUniformBind.buffer = transformBuffer.Get();
-		quadUniformBind.offset = 0;
-		quadUniformBind.size = sizeof(QuadTransform);
-
-		wgpu::BindGroupEntry& quadTextureBind = quadBindEntries[1];
-		quadTextureBind.binding = 1;
-		quadTextureBind.textureView = defaultSprite.View();
-
-		wgpu::BindGroupEntry& quadSamplerBind = quadBindEntries[2];
-		quadSamplerBind.binding = 2;
-		quadSamplerBind.sampler = spriteSampler;
-
-		wgpu::BindGroupEntry& quadCamBind = quadBindEntries[3];
-		quadCamBind.binding = 3;
-		quadCamBind.buffer = camBuffer.Get();
-		quadCamBind.offset = 0;
-		quadCamBind.size = sizeof(CamUniforms);
-
-		wgpu::BindGroupDescriptor quadBindingDesc{};
-		quadBindingDesc.layout = quadBindLayout;
-		quadBindingDesc.entryCount = quadBindLayoutDesc.entryCount;
-		quadBindingDesc.entries = quadBindEntries.data();
-		wgpu::BindGroup quadBindGroup = device.createBindGroup(quadBindingDesc);
-
-		wgpu::PipelineLayoutDescriptor quadLayoutDescriptor;
-		quadLayoutDescriptor.bindGroupLayoutCount = 1;
-		quadLayoutDescriptor.bindGroupLayouts = (WGPUBindGroupLayout*)&quadBindLayout;
-		quadLayoutDescriptor.label = "Quad layout";
-		wgpu::PipelineLayout quadPipelineLayout = device.createPipelineLayout(quadLayoutDescriptor);
-
-		wgpu::RenderPipelineDescriptor quadPipelineDesc;
-		quadPipelineDesc.layout = quadPipelineLayout;
-		quadPipelineDesc.depthStencil = &depthStencilState;
-		quadPipelineDesc.fragment = &quadFragmentState;
-
-		quadPipelineDesc.primitive.topology = wgpu::PrimitiveTopology::TriangleList;
-		quadPipelineDesc.primitive.stripIndexFormat = wgpu::IndexFormat::Undefined;
-		quadPipelineDesc.primitive.frontFace = wgpu::FrontFace::CCW;
-		quadPipelineDesc.primitive.cullMode = wgpu::CullMode::None;
-
-		std::vector<wgpu::VertexAttribute> quadVertexAttributes{ 2 };
-		quadVertexAttributes[0].format = wgpu::VertexFormat::Float32x3;
-		quadVertexAttributes[0].offset = 0;
-		quadVertexAttributes[0].shaderLocation = 0;
-		quadVertexAttributes[1].format = wgpu::VertexFormat::Float32x2;
-		quadVertexAttributes[1].offset = offsetof(Gfx::QuadVertex, u);
-		quadVertexAttributes[1].shaderLocation = 1;
-
-		wgpu::VertexBufferLayout quadVertexBufferLayout;
-		quadVertexBufferLayout.attributeCount = (uint32_t)quadVertexAttributes.size();
-		quadVertexBufferLayout.attributes = quadVertexAttributes.data();
-		quadVertexBufferLayout.arrayStride = sizeof(Gfx::QuadVertex);
-		quadVertexBufferLayout.stepMode = wgpu::VertexStepMode::Vertex;
-
-		quadPipelineDesc.vertex.bufferCount = 1;
-		quadPipelineDesc.vertex.buffers = &quadVertexBufferLayout;
-		quadPipelineDesc.vertex.module = quadShaderModule;
-		quadPipelineDesc.vertex.entryPoint = "vs_main";
-		quadPipelineDesc.vertex.constantCount = 0;
-		quadPipelineDesc.vertex.constants = nullptr;
-
-		quadPipelineDesc.multisample.count = 1;
-		quadPipelineDesc.multisample.mask = ~0u; //all bits on
-		quadPipelineDesc.multisample.alphaToCoverageEnabled = false;
-
-		quadPipelineDesc.label = "Quad Pipeline";
-		wgpu::RenderPipeline quadPipeline = device.createRenderPipeline(quadPipelineDesc);
+		quadPipeline.BindData(transformBuffer, defaultSprite, camBuffer, device);
 
 		//Create depth texture and depth texture view
 		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
@@ -738,8 +640,8 @@ int main()
 			//renderPassEncoder.release();
 
 			wgpu::RenderPassEncoder quadPassEncoder = encoder.beginRenderPass(renderPassDesc);
-			quadPassEncoder.setPipeline(quadPipeline);
-			quadPassEncoder.setBindGroup(0, quadBindGroup, 0, nullptr);
+			quadPassEncoder.setPipeline(quadPipeline.Get());
+			quadPassEncoder.setBindGroup(0, quadPipeline.BindGroup(), 0, nullptr);
 			quadPassEncoder.setVertexBuffer(0, quadBuffer.Get(), 0, quadBuffer.Size());
 			quadPassEncoder.draw((uint32_t)quad.vertices.size(), 1, 0, 0);
 			quadPassEncoder.end();

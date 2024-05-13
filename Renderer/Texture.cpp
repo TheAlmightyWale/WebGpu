@@ -2,7 +2,7 @@
 
 namespace
 {
-	wgpu::TextureViewDimension TxDimensionToTxViewDimension(wgpu::TextureDimension dimension)
+	wgpu::TextureViewDimension Convert(wgpu::TextureDimension dimension)
 	{
 		switch (dimension)
 		{
@@ -42,7 +42,7 @@ namespace Gfx
 		vDesc.arrayLayerCount = 1;
 		vDesc.baseMipLevel = 0;
 		vDesc.mipLevelCount = 1;
-		vDesc.dimension = TxDimensionToTxViewDimension(dimension);
+		vDesc.dimension = Convert(dimension);
 		vDesc.format = format;
 		_viewHandle = _handle.createView(vDesc);
 	}
