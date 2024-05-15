@@ -11,6 +11,8 @@
 #include "Texture.h"
 #include "Quad.h"
 #include "QuadRenderPipeline.h"
+#include "QuadTransform.h"
+#include "Terrain.h"
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
@@ -59,14 +61,7 @@ struct CamUniforms
 };
 static_assert(sizeof(CamUniforms) % 16 == 0);
 
-struct QuadTransform
-{
-	Vec3f position;
-	float _pad;
-	Vec2f scale;
-	float _pad2[2]; //Each member must be 16 byte aligned, min 32 bytes
-};
-static_assert(sizeof(QuadTransform) % 16 == 0);
+constexpr uint32_t k_mbBytes = 1024 * 1024;
 
 uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
@@ -121,12 +116,12 @@ int main()
 		wgpu::RequiredLimits requiredDeviceLimits = wgpu::Default;
 		requiredDeviceLimits.limits.maxVertexAttributes = 3;
 		requiredDeviceLimits.limits.maxVertexBuffers = 1;
-		requiredDeviceLimits.limits.maxBufferSize = 1'000'000 * sizeof(InterleavedVertex);
-		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(InterleavedVertex);
+		requiredDeviceLimits.limits.maxBufferSize = k_mbBytes;
+		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(Gfx::QuadVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 6; // everything other than default position needs to be under this max
 		requiredDeviceLimits.limits.maxBindGroups = 1;
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 2;
-		requiredDeviceLimits.limits.maxUniformBufferBindingSize = sizeof(Uniforms);
+		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(QuadTransform);
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
@@ -274,13 +269,22 @@ int main()
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
 		//Placeholder Quad transform
-		QuadTransform transform
-		{
-			{0.f, 0.f, 0.f}, {0},
-			{50.0f, 50.0f}
+		std::vector<QuadTransform> objectTransforms = {
+			{
+				{0.f, 0.f, 0.f}, {0},
+				{50.0f, 50.0f}
+			},
+			{
+				{25.0f, 25.0f, 0.f}, {0},
+				{50.f, 50.f}
+			},
 		};
-		Gfx::Buffer transformBuffer{ sizeof(QuadTransform), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device };
-		transformBuffer.EnqueueCopy(&transform, 0, queue);
+
+		Terrain terrain(10, 10, 50);
+
+
+		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device};
+		transformBuffer.EnqueueCopy(terrain.Cells().data(), 0, queue);
 
 		quadPipeline.BindData(transformBuffer, defaultSprite, camBuffer, device);
 
@@ -407,7 +411,7 @@ int main()
 			quadPassEncoder.setPipeline(quadPipeline.Get());
 			quadPassEncoder.setBindGroup(0, quadPipeline.BindGroup(), 0, nullptr);
 			quadPassEncoder.setVertexBuffer(0, quadBuffer.Get(), 0, quadBuffer.Size());
-			quadPassEncoder.draw((uint32_t)quad.vertices.size(), 1, 0, 0);
+			quadPassEncoder.draw((uint32_t)quad.vertices.size(), (uint32_t)terrain.Cells().size() /*instance count*/, 0, 0);
 			quadPassEncoder.end();
 			quadPassEncoder.release();
 

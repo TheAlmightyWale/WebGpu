@@ -127,7 +127,7 @@ namespace Gfx
 		quadUniformBind.binding = 0;
 		quadUniformBind.buffer = transformData.Get();
 		quadUniformBind.offset = 0;
-		quadUniformBind.size = sizeof(QuadTransform);
+		quadUniformBind.size = transformData.Size();
 
 		wgpu::BindGroupEntry& quadTextureBind = _bindEntries[1];
 		quadTextureBind.binding = 1;
@@ -141,7 +141,7 @@ namespace Gfx
 		quadCamBind.binding = 3;
 		quadCamBind.buffer = cameraData.Get();
 		quadCamBind.offset = 0;
-		quadCamBind.size = sizeof(CamUniforms);
+		quadCamBind.size = cameraData.Size();
 
 		wgpu::BindGroupDescriptor bindingDesc{};
 		bindingDesc.layout = _bindLayout;

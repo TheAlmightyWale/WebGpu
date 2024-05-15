@@ -2,13 +2,13 @@
 
 namespace Gfx
 {
-	void Buffer::EnqueueCopy(void* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue)
+	void Buffer::EnqueueCopy(void const* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue)
 	{
 		assert(size <= _size);
 		queue.writeBuffer(_handle, bufferOffset, pData, size);
 	}
 
-	void Buffer::EnqueueCopy(void* pData, uint32_t bufferOffset, wgpu::Queue& queue)
+	void Buffer::EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue)
 	{
 		EnqueueCopy(pData, _size, bufferOffset, queue);
 	}

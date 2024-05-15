@@ -11,8 +11,8 @@ namespace Gfx
 		Buffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device);
 		~Buffer();
 
-		void EnqueueCopy(void* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue);
-		void EnqueueCopy(void* pData, uint32_t bufferOffset, wgpu::Queue& queue);
+		void EnqueueCopy(void const* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue);
+		void EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue);
 
 		inline wgpu::Buffer const& Get() const { return _handle; }
 		inline uint32_t const Size() const { return _size; }
