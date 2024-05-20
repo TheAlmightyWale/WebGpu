@@ -11,7 +11,7 @@
 #include "Texture.h"
 #include "Quad.h"
 #include "QuadRenderPipeline.h"
-#include "QuadTransform.h"
+#include "QuadDefs.h"
 #include "Terrain.h"
 
 constexpr uint32_t k_screenWidth = 800;
@@ -53,13 +53,6 @@ struct Uniforms
 	float _pad[3]; //struct must be 16byte aligned
 };
 static_assert(sizeof(Uniforms) % 16 == 0);
-
-struct CamUniforms
-{
-	Vec2f position;
-	Vec2f extents;
-};
-static_assert(sizeof(CamUniforms) % 16 == 0);
 
 constexpr uint32_t k_mbBytes = 1024 * 1024;
 
@@ -125,7 +118,7 @@ int main()
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
-		requiredDeviceLimits.limits.maxTextureArrayLayers = 1;
+		requiredDeviceLimits.limits.maxTextureArrayLayers = 2;
 		requiredDeviceLimits.limits.maxSampledTexturesPerShaderStage = 1;
 		requiredDeviceLimits.limits.maxSamplersPerShaderStage = 1;
 
@@ -247,11 +240,17 @@ int main()
 		//Default texture load
 		TextureResource defaultRes = *Utils::LoadTexture(ASSETS_DIR "/default.png");
 		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
-			{defaultRes.width, defaultRes.height, 1},
+			{defaultRes.width, defaultRes.height, 2},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+			defaultRes.numChannels,
+			defaultRes.channelDepthBytes,
 			wgpu::TextureFormat::RGBA8Unorm,
 			device };
-		defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.SizeBytes(), queue);
+		defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.Extents(), queue);
+
+		//Load other textures and offset copy
+		TextureResource texture2 = *Utils::LoadTexture(ASSETS_DIR "/cell4_1.png");
+		defaultSprite.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
 		wgpu::SamplerDescriptor spriteSamplerDesc;
 		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -290,7 +289,7 @@ int main()
 
 		//Create depth texture and depth texture view
 		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
-			wgpu::TextureUsage::RenderAttachment, depthTextureFormat, device);
+			wgpu::TextureUsage::RenderAttachment, 1, 3/*24 bit depth*/, depthTextureFormat, device);
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;
 		depthTextureViewDesc.aspect = wgpu::TextureAspect::DepthOnly;

@@ -97,7 +97,8 @@ namespace Utils
 		res.channelDepthBytes = 1;// stbi uses 8bit channels
 		res.numChannels = (uint8_t)n;
 		uint32_t dataSizeBytes = (uint32_t)(x * y * n);
-		res.data.reserve(dataSizeBytes);
+		res.data.resize(dataSizeBytes);
+		res.label = path.stem().string();
 		std::copy((std::byte*)pData, (std::byte*)pData + dataSizeBytes, res.data.data());
 
 		stbi_image_free(pData);

@@ -6,6 +6,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) texCoord: vec2f,
+    @location(1) @interpolate(flat) texIndex: u32
 };
 
 struct Camera {
@@ -15,13 +16,14 @@ struct Camera {
 
 struct Transform {
     position: vec3f,
+    texIndex: u32,
     scale: vec2f,
 }
 
 const k_maxInstancesPerDraw = 100;
 
 @group(0) @binding(0) var<uniform> uTransforms: array<Transform, k_maxInstancesPerDraw>;
-@group(0) @binding(1) var texture: texture_2d<f32>;
+@group(0) @binding(1) var textures: texture_2d_array<f32>;
 @group(0) @binding(2) var txSampler: sampler;
 @group(0) @binding(3) var<uniform> uCamera: Camera;
 
@@ -39,12 +41,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOut
                          out.position.zw
         );
     out.texCoord = in.texCoord;
+    out.texIndex = transform.texIndex;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let color = textureSample(texture, txSampler, in.texCoord);
+    let color = textureSample(textures, txSampler, in.texCoord, in.texIndex);
     //gamma-correction
     return vec4f(pow(color.xyz, vec3f(2.2)).xyz, color.a);
 }

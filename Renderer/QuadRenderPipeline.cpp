@@ -1,6 +1,7 @@
 #include "QuadRenderPipeline.h"
 #include "Utils.h"
 #include "Quad.h"
+#include "QuadDefs.h"
 
 namespace Gfx
 {
@@ -56,7 +57,7 @@ namespace Gfx
 		textureBinding.binding = 1;
 		textureBinding.visibility = wgpu::ShaderStage::Fragment;
 		textureBinding.texture.sampleType = wgpu::TextureSampleType::Float;
-		textureBinding.texture.viewDimension = wgpu::TextureViewDimension::_2D;
+		textureBinding.texture.viewDimension = wgpu::TextureViewDimension::_2DArray;
 
 		wgpu::BindGroupLayoutEntry& samplerBinding = _bindLayouts[2];
 		samplerBinding.binding = 2;

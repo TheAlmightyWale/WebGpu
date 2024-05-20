@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <vector>
-#include "QuadTransform.h"
+#include "QuadDefs.h"
 
 //Handles generating a grid of tiles of stores their locations
 // eventually will handle also generating the associated initial height map

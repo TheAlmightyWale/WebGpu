@@ -28,6 +28,7 @@ struct TextureResource
 	std::string label;
 
 	uint32_t SizeBytes() { return numChannels * width * height * channelDepthBytes; }
+	wgpu::Extent3D Extents() { return { width, height, 1 }; }
 };
 
 namespace Utils
