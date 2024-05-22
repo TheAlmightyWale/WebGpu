@@ -6,7 +6,8 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) texCoord: vec2f,
-    @location(1) @interpolate(flat) texIndex: u32
+    @location(1) @interpolate(flat) texIndex: u32,
+    //@location(2) @interpolate(flat) anim : Animation
 };
 
 struct Camera {
@@ -14,10 +15,18 @@ struct Camera {
     posExtent: vec4f,
 }
 
+struct Animation {
+    startCoord: vec2f,
+    frameDim: vec2f,
+    currFrame: u32,
+}
+
 struct Transform {
     position: vec3f,
     texIndex: u32,
     scale: vec2f,
+    //anim : Animation,
+    //_padding : u32,
 }
 
 const k_maxInstancesPerDraw = 100;
@@ -47,7 +56,18 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOut
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let color = textureSample(textures, txSampler, in.texCoord, in.texIndex);
+    var anim: Animation;
+    anim.startCoord = vec2f(0.0,0.0);
+    anim.frameDim = vec2f(50.0, 38.0);
+    anim.currFrame = 0u;
+
+    let dims: vec2f = vec2f(textureDimensions(textures));
+    let offset: vec2f = vec2f(f32(anim.currFrame) * anim.frameDim.x + anim.startCoord.x, anim.startCoord.y);
+    let normOffset: vec2f = offset / dims; //offset in texture space
+    let spriteDim: vec2f = anim.frameDim / dims; //dimensions in texture space
+    let spriteTexCoords: vec2f = in.texCoord * spriteDim + normOffset;
+
+    let color = textureSample(textures, txSampler, spriteTexCoords, in.texIndex);
     //gamma-correction
     return vec4f(pow(color.xyz, vec3f(2.2)).xyz, color.a);
 }

@@ -6,7 +6,7 @@ namespace Gfx
 	class Texture {
 	public:
 		Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents,
-			int usageFlags, uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device);
+			int usageFlags, uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device, std::string const& label);
 		~Texture();
 
 		void EnqueueCopy(void* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset = { 0, 0, 0 });

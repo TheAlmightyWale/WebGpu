@@ -106,7 +106,7 @@ namespace Utils
 		return res;
 	}
 
-	std::vector<TextureResource> LoadAnimation(std::filesystem::path const& folderPath)
+	std::optional<TextureResource> LoadAnimation(std::filesystem::path const& folderPath)
 	{
 		std::vector<TextureResource> animation;
 
@@ -122,7 +122,58 @@ namespace Utils
 			}
 		}
 
-		return animation;
+		if (animation.empty()) {
+			std::cout << "Failed to load Animation: " << folderPath << "\n";
+			return std::nullopt;
+		}
+
+		//Pack animation into a single row for now
+		//images expected to be in format <name>_<frameId>
+		//sort by frame number
+		std::sort(animation.begin(), animation.end(), [](TextureResource const& l, TextureResource const& r) {
+			size_t lPos = l.label.find('_') + 1; // want everything after _
+			std::string lFrame = l.label.substr(lPos);
+			int lFrameNum = atoi(lFrame.c_str());
+
+			size_t rPos = r.label.find('_') + 1; //want everything after _
+			std::string rFrame = r.label.substr(rPos); 
+			int rFrameNum = atoi(rFrame.c_str());
+
+			return lFrameNum < rFrameNum;
+		});
+
+		std::string animationName = animation[0].label.substr(0,animation[0].label.find('_'));
+
+		TextureResource animationStrip{
+			animation[0].width * (uint32_t)animation.size(),
+			animation[0].height,
+			animation[0].channelDepthBytes,
+			animation[0].numChannels,
+			{} /*data*/,
+			animationName
+		};
+
+		animationStrip.data.resize(animationStrip.SizeBytes());
+
+		//Copy frames into strip
+		size_t imageColumnOffset = 0;
+		size_t totalRowBytes = animation[0].width * animation[0].channelDepthBytes * animation[0].numChannels * animation.size();
+		for (uint32_t i = 0; i < animation.size(); ++i) {
+			auto const& frame = animation[i];
+			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
+			for (uint32_t row = 0; row < frame.height; ++row)
+			{
+				//copy row by row so we fill in each "square" image
+				size_t dstOffset = imageColumnOffset + row * totalRowBytes;
+				size_t srcOffset = row * imageRowBytes;
+				memcpy_s(animationStrip.data.data() + dstOffset, imageRowBytes, frame.data.data() + srcOffset, imageRowBytes);
+
+			}
+
+			imageColumnOffset += imageRowBytes;
+		}
+
+		return animationStrip;
 	}
 
 	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)

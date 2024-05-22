@@ -23,7 +23,7 @@ namespace
 namespace Gfx
 {
 	Texture::Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags,
-		uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device)
+		uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device, std::string const& label)
 		: _handle(nullptr)
 		, _viewHandle(nullptr)
 		, _extents(extents)
@@ -40,6 +40,7 @@ namespace Gfx
 		desc.usage = usageFlags;
 		desc.viewFormatCount = 1;
 		desc.viewFormats = (WGPUTextureFormat*)&_format;
+		desc.label = label.c_str();
 		_handle = device.createTexture(desc);
 
 		wgpu::TextureViewDescriptor vDesc;

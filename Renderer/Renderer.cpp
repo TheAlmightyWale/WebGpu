@@ -237,6 +237,32 @@ int main()
 		depthStencilState.stencilReadMask = 0;
 		depthStencilState.stencilWriteMask = 0;
 
+		//Temp animation load
+		auto anim = *Utils::LoadAnimation(ASSETS_DIR "/cell1");
+		//Upload anim strip
+		//manually define animation for now
+		struct Anim {
+			uint32_t startX = 0;
+			uint32_t startY = 0;
+			uint32_t frameHeight = 38;
+			uint32_t frameWidth = 50;
+			uint32_t currFrame = 0;
+			float _padding[3];
+		} animInfo;
+		static_assert(sizeof(Anim) % 16 == 0);
+
+		Gfx::Texture animTex{
+			wgpu::TextureDimension::_2D,
+			{anim.width, anim.height, 2},
+			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
+			anim.numChannels,
+			anim.channelDepthBytes,
+			wgpu::TextureFormat::RGBA8Unorm,
+			device,
+			"animation"
+		};
+		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
+
 		//Default texture load
 		TextureResource defaultRes = *Utils::LoadTexture(ASSETS_DIR "/default.png");
 		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
@@ -245,12 +271,13 @@ int main()
 			defaultRes.numChannels,
 			defaultRes.channelDepthBytes,
 			wgpu::TextureFormat::RGBA8Unorm,
-			device };
-		defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.Extents(), queue);
+			device,
+			"default sprite"};
+		//defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.Extents(), queue);
 
 		//Load other textures and offset copy
 		TextureResource texture2 = *Utils::LoadTexture(ASSETS_DIR "/cell4_1.png");
-		defaultSprite.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
+		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
 		wgpu::SamplerDescriptor spriteSamplerDesc;
 		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -285,11 +312,11 @@ int main()
 		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device};
 		transformBuffer.EnqueueCopy(terrain.Cells().data(), 0, queue);
 
-		quadPipeline.BindData(transformBuffer, defaultSprite, camBuffer, device);
+		quadPipeline.BindData(transformBuffer, animTex, camBuffer, device);
 
 		//Create depth texture and depth texture view
 		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
-			wgpu::TextureUsage::RenderAttachment, 1, 3/*24 bit depth*/, depthTextureFormat, device);
+			wgpu::TextureUsage::RenderAttachment, 1, 3/*24 bit depth*/, depthTextureFormat, device, "depth");
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;
 		depthTextureViewDesc.aspect = wgpu::TextureAspect::DepthOnly;
