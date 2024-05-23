@@ -13,8 +13,16 @@ public:
 	inline std::vector<QuadTransform> const& Cells() {
 		return _cells;
 	}
+	inline std::vector<AnimUniform> const& CellAnimations() {
+		return _cellAnim;
+	}
+
+	void Animate(float dT);
 
 private:
 	std::vector<QuadTransform> _cells;
+	std::vector<AnimUniform> _cellAnim;
+
+	float _secs = 0.f;
 
 };

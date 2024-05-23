@@ -7,7 +7,7 @@ struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) texCoord: vec2f,
     @location(1) @interpolate(flat) texIndex: u32,
-    //@location(2) @interpolate(flat) anim : Animation
+    @location(2) @interpolate(flat) instance : u32,
 };
 
 struct Camera {
@@ -19,14 +19,15 @@ struct Animation {
     startCoord: vec2f,
     frameDim: vec2f,
     currFrame: u32,
+    _padding0: f32,
+    _padding: vec2f, //can't use vec3f here as it actully aligns on 16bytes, rather than 12
 }
 
 struct Transform {
     position: vec3f,
     texIndex: u32,
     scale: vec2f,
-    //anim : Animation,
-    //_padding : u32,
+    _padding: vec2f,
 }
 
 const k_maxInstancesPerDraw = 100;
@@ -35,6 +36,7 @@ const k_maxInstancesPerDraw = 100;
 @group(0) @binding(1) var textures: texture_2d_array<f32>;
 @group(0) @binding(2) var txSampler: sampler;
 @group(0) @binding(3) var<uniform> uCamera: Camera;
+@group(0) @binding(4) var<uniform> uAnimations: array<Animation, k_maxInstancesPerDraw>;
 
 @vertex
 fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOutput {
@@ -51,16 +53,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOut
         );
     out.texCoord = in.texCoord;
     out.texIndex = transform.texIndex;
+    out.instance = instance;
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    var anim: Animation;
-    anim.startCoord = vec2f(0.0,0.0);
-    anim.frameDim = vec2f(50.0, 38.0);
-    anim.currFrame = 0u;
-
+    let anim: Animation = uAnimations[in.instance];
     let dims: vec2f = vec2f(textureDimensions(textures));
     let offset: vec2f = vec2f(f32(anim.currFrame) * anim.frameDim.x + anim.startCoord.x, anim.startCoord.y);
     let normOffset: vec2f = offset / dims; //offset in texture space

@@ -7,14 +7,15 @@
 
 namespace Gfx
 {
-	constexpr uint32_t k_QuadPipelineBindingCount = 4;
+	constexpr uint32_t k_QuadPipelineBindingCount = 5;
 
 	class QuadRenderPipeline {
 	public:
 		QuadRenderPipeline(wgpu::Device device, wgpu::ShaderModule shaders, wgpu::ColorTargetState outputTarget, wgpu::DepthStencilState depthStencil);
 		~QuadRenderPipeline();
 
-		void BindData(Gfx::Buffer const& transformData, Gfx::Texture const& texture, Gfx::Buffer const& cameraData, wgpu::Device device);
+		void BindData(Gfx::Buffer const& transformData, Gfx::Texture const& texture,
+			Gfx::Buffer const& cameraData, Gfx::Buffer const& animationData, wgpu::Device device);
 
 		inline wgpu::RenderPipeline Get() const noexcept {
 			return _pipeline;

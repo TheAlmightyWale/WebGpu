@@ -16,3 +16,13 @@ struct CamUniforms
 	Vec2f extents;
 };
 static_assert(sizeof(CamUniforms) % 16 == 0);
+
+struct AnimUniform
+{
+	Vec2f startCoord;
+	Vec2f frameDimensions;
+	uint32_t currentFrameIndex;
+	float _padding[3];
+};
+
+static_assert(sizeof(AnimUniform) % 16 == 0);

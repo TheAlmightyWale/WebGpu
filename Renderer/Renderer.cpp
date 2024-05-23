@@ -13,6 +13,7 @@
 #include "QuadRenderPipeline.h"
 #include "QuadDefs.h"
 #include "Terrain.h"
+#include "Chrono.h"
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
@@ -113,8 +114,8 @@ int main()
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(Gfx::QuadVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 6; // everything other than default position needs to be under this max
 		requiredDeviceLimits.limits.maxBindGroups = 1;
-		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 2;
-		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(QuadTransform);
+		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 3;
+		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(AnimUniform);
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
 		requiredDeviceLimits.limits.maxTextureDimension1D = k_screenHeight;
 		requiredDeviceLimits.limits.maxTextureDimension2D = k_screenWidth;
@@ -240,17 +241,6 @@ int main()
 		//Temp animation load
 		auto anim = *Utils::LoadAnimation(ASSETS_DIR "/cell1");
 		//Upload anim strip
-		//manually define animation for now
-		struct Anim {
-			uint32_t startX = 0;
-			uint32_t startY = 0;
-			uint32_t frameHeight = 38;
-			uint32_t frameWidth = 50;
-			uint32_t currFrame = 0;
-			float _padding[3];
-		} animInfo;
-		static_assert(sizeof(Anim) % 16 == 0);
-
 		Gfx::Texture animTex{
 			wgpu::TextureDimension::_2D,
 			{anim.width, anim.height, 2},
@@ -277,7 +267,7 @@ int main()
 
 		//Load other textures and offset copy
 		TextureResource texture2 = *Utils::LoadTexture(ASSETS_DIR "/cell4_1.png");
-		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
+		//animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
 		wgpu::SamplerDescriptor spriteSamplerDesc;
 		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -294,25 +284,17 @@ int main()
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
-		//Placeholder Quad transform
-		std::vector<QuadTransform> objectTransforms = {
-			{
-				{0.f, 0.f, 0.f}, {0},
-				{50.0f, 50.0f}
-			},
-			{
-				{25.0f, 25.0f, 0.f}, {0},
-				{50.f, 50.f}
-			},
-		};
-
 		Terrain terrain(10, 10, 50);
 
-
-		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Transform Buffer", device};
+		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+			"Transform Buffer", device};
 		transformBuffer.EnqueueCopy(terrain.Cells().data(), 0, queue);
 
-		quadPipeline.BindData(transformBuffer, animTex, camBuffer, device);
+		Gfx::Buffer animationBuffer{(uint32_t)(terrain.CellAnimations().size() * sizeof(AnimUniform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+			"Animations", device };
+		animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
+
+		quadPipeline.BindData(transformBuffer, animTex, camBuffer, animationBuffer, device);
 
 		//Create depth texture and depth texture view
 		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
@@ -327,7 +309,6 @@ int main()
 		depthTextureViewDesc.dimension = wgpu::TextureViewDimension::_2D;
 		depthTextureViewDesc.format = depthTextureFormat;
 		wgpu::TextureView depthTextureView = depthTexture.Get().createView(depthTextureViewDesc);
-
 
 		//Temp buffer data
 		uint32_t k_bufferSize = 16;
@@ -384,6 +365,9 @@ int main()
 
 		while (!window.ShouldClose())
 		{
+			Clock::Tick();
+			float deltaTime = Clock::GetDelta();
+
 			glfwPollEvents();
 
 			wgpu::TextureView toDisplay = swapchain.getCurrentTextureView();
@@ -405,6 +389,10 @@ int main()
 			//EnqueueCopy uniforms
 			uniform.time = static_cast<float>(glfwGetTime());
 			uniformBuffer.EnqueueCopy(&uniform, sizeof(Uniforms), 0, queue);
+
+			//Update animations
+			terrain.Animate(deltaTime);
+			animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
 
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;

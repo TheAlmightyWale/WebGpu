@@ -71,6 +71,13 @@ namespace Gfx
 		cameraUniformBinding.buffer.minBindingSize = sizeof(CamUniforms);
 		cameraUniformBinding.buffer.hasDynamicOffset = false;
 
+		wgpu::BindGroupLayoutEntry& animationUniformBinding = _bindLayouts[4];
+		animationUniformBinding.binding = 4;
+		animationUniformBinding.visibility = wgpu::ShaderStage::Fragment;
+		animationUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
+		animationUniformBinding.buffer.minBindingSize = sizeof(AnimUniform);
+		animationUniformBinding.buffer.hasDynamicOffset = false;
+
 		wgpu::BindGroupLayoutDescriptor bindLayoutDesc;
 		bindLayoutDesc.entryCount = k_QuadPipelineBindingCount;
 		bindLayoutDesc.entries = _bindLayouts.data();
@@ -122,27 +129,33 @@ namespace Gfx
 		_pipeline.release();
 	}
 
-	void QuadRenderPipeline::BindData(Gfx::Buffer const& transformData, Gfx::Texture const& texture, Gfx::Buffer const& cameraData, wgpu::Device device)
+	void QuadRenderPipeline::BindData(Gfx::Buffer const& transformData, Gfx::Texture const& texture, Gfx::Buffer const& cameraData, Gfx::Buffer const& animationData, wgpu::Device device)
 	{
-		wgpu::BindGroupEntry& quadUniformBind = _bindEntries[0];
-		quadUniformBind.binding = 0;
-		quadUniformBind.buffer = transformData.Get();
-		quadUniformBind.offset = 0;
-		quadUniformBind.size = transformData.Size();
+		wgpu::BindGroupEntry& uniformBind = _bindEntries[0];
+		uniformBind.binding = 0;
+		uniformBind.buffer = transformData.Get();
+		uniformBind.offset = 0;
+		uniformBind.size = transformData.Size();
 
-		wgpu::BindGroupEntry& quadTextureBind = _bindEntries[1];
-		quadTextureBind.binding = 1;
-		quadTextureBind.textureView = texture.View();
+		wgpu::BindGroupEntry& textureBind = _bindEntries[1];
+		textureBind.binding = 1;
+		textureBind.textureView = texture.View();
 
-		wgpu::BindGroupEntry& quadSamplerBind = _bindEntries[2];
-		quadSamplerBind.binding = 2;
-		quadSamplerBind.sampler = _sampler;
+		wgpu::BindGroupEntry& samplerBind = _bindEntries[2];
+		samplerBind.binding = 2;
+		samplerBind.sampler = _sampler;
 
-		wgpu::BindGroupEntry& quadCamBind = _bindEntries[3];
-		quadCamBind.binding = 3;
-		quadCamBind.buffer = cameraData.Get();
-		quadCamBind.offset = 0;
-		quadCamBind.size = cameraData.Size();
+		wgpu::BindGroupEntry& camBind = _bindEntries[3];
+		camBind.binding = 3;
+		camBind.buffer = cameraData.Get();
+		camBind.offset = 0;
+		camBind.size = cameraData.Size();
+
+		wgpu::BindGroupEntry& animBind = _bindEntries[4];
+		animBind.binding = 4;
+		animBind.buffer = animationData.Get();
+		animBind.offset = 0;
+		animBind.size = animationData.Size();
 
 		wgpu::BindGroupDescriptor bindingDesc{};
 		bindingDesc.layout = _bindLayout;
