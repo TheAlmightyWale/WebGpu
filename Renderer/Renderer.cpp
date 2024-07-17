@@ -114,6 +114,7 @@ int main()
 		requiredDeviceLimits.limits.maxVertexBufferArrayStride = sizeof(Gfx::QuadVertex);
 		requiredDeviceLimits.limits.maxInterStageShaderComponents = 6; // everything other than default position needs to be under this max
 		requiredDeviceLimits.limits.maxBindGroups = 1;
+		requiredDeviceLimits.limits.maxBindingsPerBindGroup = 10;
 		requiredDeviceLimits.limits.maxUniformBuffersPerShaderStage = 3;
 		requiredDeviceLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(AnimUniform);
 		requiredDeviceLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
@@ -142,7 +143,7 @@ int main()
 		auto onDeviceError = [](wgpu::ErrorType type, char const* message) {
 			std::cout << "Uncaptured Device error: type-" << type;
 			if (message) std::cout << " (" << message << ")";
-			std::cout << "/n";
+			std::cout << "\n";
 
 			assert(true);
 		};
@@ -153,7 +154,8 @@ int main()
 		auto onQueueWorkDone = [](wgpu::QueueWorkDoneStatus status) {
 			std::cout << "Queued work completed with status: " << status << "\n";
 		};
-		queue.onSubmittedWorkDone(onQueueWorkDone);
+		//disabled for now due to causing crashes on surface.configure
+		//queue.onSubmittedWorkDone(onQueueWorkDone);
 
 		float angle1 = 2.0f; //arbitrary
 		float angle2 = 3.0f * PI / 4.0f;
@@ -189,14 +191,20 @@ int main()
 
 		wgpu::TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 		if (swapChainFormat == wgpu::TextureFormat::Undefined) swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
-		wgpu::SwapChainDescriptor swapChainDesc{};
-		swapChainDesc.width = k_screenWidth;
-		swapChainDesc.height = k_screenHeight;
-		swapChainDesc.format = swapChainFormat;
-		swapChainDesc.usage = wgpu::TextureUsage::RenderAttachment;
-		swapChainDesc.presentMode = wgpu::PresentMode::Fifo;
-		swapChainDesc.label = "Swapchain";
-		wgpu::SwapChain swapchain = device.createSwapChain(surface, swapChainDesc);
+		
+		//Swapchain is configured through surface
+		wgpu::SurfaceConfiguration surfaceConfig = wgpu::Default;
+		surfaceConfig.nextInChain = nullptr;
+		surfaceConfig.width = k_screenWidth;
+		surfaceConfig.height = k_screenHeight;
+		surfaceConfig.format = swapChainFormat;
+		surfaceConfig.usage = wgpu::TextureUsage::RenderAttachment;
+		surfaceConfig.presentMode = wgpu::PresentMode::Fifo;
+		surfaceConfig.alphaMode = wgpu::CompositeAlphaMode::Auto;
+		surfaceConfig.viewFormatCount = 0;
+		surfaceConfig.viewFormats = nullptr;
+		surfaceConfig.device = device;
+		surface.configure(surfaceConfig);
 
 		//Quad cam uniforms, to be updated when swap chain is resized
 		CamUniforms quadCam;
@@ -206,7 +214,7 @@ int main()
 		Gfx::Buffer camBuffer{ sizeof(CamUniforms), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Camera Uniforms", device};
 		camBuffer.EnqueueCopy(&quadCam, 0, queue);
 
-		std::cout << "Swapchain: " << swapchain << "\n";
+		std::cout << "Configured Surface\n";
 
 		wgpu::BlendState blendState{};
 		blendState.color.srcFactor = wgpu::BlendFactor::SrcAlpha;
@@ -297,7 +305,7 @@ int main()
 		quadPipeline.BindData(transformBuffer, animTex, camBuffer, animationBuffer, device);
 
 		//Create depth texture and depth texture view
-		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { swapChainDesc.width, swapChainDesc.height, 1 },
+		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, { surfaceConfig.width, surfaceConfig.height, 1 },
 			wgpu::TextureUsage::RenderAttachment, 1, 3/*24 bit depth*/, depthTextureFormat, device, "depth");
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;
@@ -370,7 +378,25 @@ int main()
 
 			glfwPollEvents();
 
-			wgpu::TextureView toDisplay = swapchain.getCurrentTextureView();
+			wgpu::SurfaceTexture surfaceTexture;
+			surface.getCurrentTexture(&surfaceTexture);
+			if (surfaceTexture.status != wgpu::SurfaceGetCurrentTextureStatus::Success) {
+				std::cerr << "Failed to get surfaceTexture, status code: " << surfaceTexture.status << "\n";
+				break;
+			}
+			
+			wgpu::TextureViewDescriptor surfaceViewDesc = wgpu::Default;
+			surfaceViewDesc.nextInChain = nullptr;
+			surfaceViewDesc.label = "Display Surface Texture View";
+			surfaceViewDesc.format = wgpuTextureGetFormat(surfaceTexture.texture);
+			surfaceViewDesc.dimension = wgpu::TextureViewDimension::_2D;
+			surfaceViewDesc.baseMipLevel = 0;
+			surfaceViewDesc.mipLevelCount = 1;
+			surfaceViewDesc.baseArrayLayer = 0;
+			surfaceViewDesc.arrayLayerCount = 1;
+			surfaceViewDesc.aspect = wgpu::TextureAspect::All;
+
+			wgpu::TextureView toDisplay = wgpuTextureCreateView(surfaceTexture.texture, &surfaceViewDesc);
 			if (!toDisplay)
 			{
 				std::cerr << "Failed to acquire next swap chain texture\n";
@@ -416,7 +442,6 @@ int main()
 			wgpu::RenderPassDescriptor renderPassDesc{};
 			renderPassDesc.colorAttachmentCount = 1;
 			renderPassDesc.colorAttachments = &rpColorAttachment;
-			renderPassDesc.timestampWriteCount = 0;
 			renderPassDesc.timestampWrites = nullptr;
 			renderPassDesc.depthStencilAttachment = &rpDepthAttachment;
 			renderPassDesc.nextInChain = nullptr; //TODO ensure this is set to nullptr for all descriptor constructors
@@ -438,7 +463,7 @@ int main()
 			commands.release();
 			encoder.release();
 			toDisplay.release();
-			swapchain.present();
+			surface.present();
 
 			//Wait until queue is finished processing
 #ifdef WEBGPU_BACKEND_WGPU
@@ -450,8 +475,6 @@ int main()
 
 		//TODO raii webgpu generator
 		depthTextureView.release();
-
-		swapchain.release();
 		queue.release();
 		device.release();
 		adapter.release();
