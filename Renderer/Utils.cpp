@@ -1,4 +1,8 @@
 #include "Utils.h"
+#include <filesystem>
+#include "ObjLoader.h"
+#include "ImageLoader.h"
+#include "fstream"
 
 namespace
 {
@@ -172,6 +176,8 @@ namespace Utils
 
 			imageColumnOffset += imageRowBytes;
 		}
+
+		std::cout << "Loaded Animation at: " << folderPath << "\n";
 
 		return animationStrip;
 	}

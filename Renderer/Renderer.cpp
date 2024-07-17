@@ -14,6 +14,7 @@
 #include "QuadDefs.h"
 #include "Terrain.h"
 #include "Chrono.h"
+#include "ResourceManager.h"
 
 constexpr uint32_t k_screenWidth = 800;
 constexpr uint32_t k_screenHeight = 600;
@@ -247,7 +248,9 @@ int main()
 		depthStencilState.stencilWriteMask = 0;
 
 		//Temp animation load
-		auto anim = *Utils::LoadAnimation(ASSETS_DIR "/cell1");
+		ResourceManager resources;
+		resources.LoadAllAnimations(ASSETS_DIR);
+		auto anim = resources.GetAnimation("cell1");
 		//Upload anim strip
 		Gfx::Texture animTex{
 			wgpu::TextureDimension::_2D,
@@ -274,7 +277,7 @@ int main()
 		//defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.Extents(), queue);
 
 		//Load other textures and offset copy
-		TextureResource texture2 = *Utils::LoadTexture(ASSETS_DIR "/cell4_1.png");
+		//TextureResource const& texture2 = resources.GetAnimation("cell4");
 		//animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
 		wgpu::SamplerDescriptor spriteSamplerDesc;
