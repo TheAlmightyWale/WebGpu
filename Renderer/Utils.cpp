@@ -3,6 +3,7 @@
 #include "ObjLoader.h"
 #include "ImageLoader.h"
 #include "fstream"
+#include <string.h> //memcpy_s
 
 namespace
 {
@@ -170,7 +171,7 @@ namespace Utils
 				//copy row by row so we fill in each "square" image
 				size_t dstOffset = imageColumnOffset + row * totalRowBytes;
 				size_t srcOffset = row * imageRowBytes;
-				memcpy_s(animationStrip.data.data() + dstOffset, imageRowBytes, frame.data.data() + srcOffset, imageRowBytes);
+				memcpy(animationStrip.data.data() + dstOffset, frame.data.data() + srcOffset, imageRowBytes);
 
 			}
 

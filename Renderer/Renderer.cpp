@@ -52,7 +52,7 @@ struct Uniforms
 	Mat4f model;
 	Vec4f color;
 	float time;
-	float _pad[3]; //struct must be 16byte aligned
+	float _pad[3] = {0.f,0.f,0.f}; //struct must be 16byte aligned
 };
 static_assert(sizeof(Uniforms) % 16 == 0);
 
@@ -152,10 +152,10 @@ int main()
 
 		wgpu::Queue queue = device.getQueue();
 
-		auto onQueueWorkDone = [](wgpu::QueueWorkDoneStatus status) {
-			std::cout << "Queued work completed with status: " << status << "\n";
-		};
 		//disabled for now due to causing crashes on surface.configure
+		//auto onQueueWorkDone = [](wgpu::QueueWorkDoneStatus status) {
+		//	std::cout << "Queued work completed with status: " << status << "\n";
+		//};
 		//queue.onSubmittedWorkDone(onQueueWorkDone);
 
 		float angle1 = 2.0f; //arbitrary
@@ -230,7 +230,8 @@ int main()
 		colorTarget.blend = &blendState;
 		colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
-		auto oQuadShaderModule = Utils::LoadShaderModule(ASSETS_DIR "/quadShader.wgsl", device);
+		std::filesystem::path assetsBasePath(ASSETS_DIR);
+		auto oQuadShaderModule = Utils::LoadShaderModule(assetsBasePath /= "quadShader.wgsl", device);
 		if (!oQuadShaderModule)
 		{
 			std::cout << "Failed to create Quad Shader Module" << std::endl;
@@ -249,7 +250,7 @@ int main()
 
 		//Temp animation load
 		ResourceManager resources;
-		resources.LoadAllAnimations(ASSETS_DIR);
+		resources.LoadAllAnimations(assetsBasePath);
 		auto anim = resources.GetAnimation("cell1");
 		//Upload anim strip
 		Gfx::Texture animTex{
@@ -265,7 +266,7 @@ int main()
 		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
 
 		//Default texture load
-		TextureResource defaultRes = *Utils::LoadTexture(ASSETS_DIR "/default.png");
+		TextureResource defaultRes = *Utils::LoadTexture(assetsBasePath /= "default.png");
 		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
 			{defaultRes.width, defaultRes.height, 2},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
@@ -280,18 +281,18 @@ int main()
 		//TextureResource const& texture2 = resources.GetAnimation("cell4");
 		//animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
-		wgpu::SamplerDescriptor spriteSamplerDesc;
-		spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
-		spriteSamplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
-		spriteSamplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
-		spriteSamplerDesc.magFilter = wgpu::FilterMode::Linear;
-		spriteSamplerDesc.minFilter = wgpu::FilterMode::Linear;
-		spriteSamplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Linear;
-		spriteSamplerDesc.lodMinClamp = 0.0f;
-		spriteSamplerDesc.lodMaxClamp = 1.0f;
-		spriteSamplerDesc.compare = wgpu::CompareFunction::Undefined;
-		spriteSamplerDesc.maxAnisotropy = 1;
-		wgpu::Sampler spriteSampler = device.createSampler(spriteSamplerDesc);
+		//wgpu::SamplerDescriptor spriteSamplerDesc;
+		//spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
+		//spriteSamplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
+		//spriteSamplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
+		//spriteSamplerDesc.magFilter = wgpu::FilterMode::Linear;
+		//spriteSamplerDesc.minFilter = wgpu::FilterMode::Linear;
+		//spriteSamplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Linear;
+		//spriteSamplerDesc.lodMinClamp = 0.0f;
+		//spriteSamplerDesc.lodMaxClamp = 1.0f;
+		//spriteSamplerDesc.compare = wgpu::CompareFunction::Undefined;
+		//spriteSamplerDesc.maxAnisotropy = 1;
+		//wgpu::Sampler spriteSampler = device.createSampler(spriteSamplerDesc);
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 

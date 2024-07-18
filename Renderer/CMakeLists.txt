@@ -20,7 +20,7 @@ set_target_properties(Renderer PROPERTIES
 if(DEV_MODE)
     # In dev mode, we load resources from the source tree, so that when we
     # dynamically edit resources (like shaders), these are correctly
-    # versionned.
+    # versioned.
     target_compile_definitions(Renderer PRIVATE
         ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
     )

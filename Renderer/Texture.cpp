@@ -4,6 +4,7 @@ namespace
 {
 	wgpu::TextureViewDimension Convert(wgpu::TextureDimension dimension, wgpu::Extent3D extents)
 	{
+
 		switch (dimension)
 		{
 		case wgpu::TextureDimension::_1D: return wgpu::TextureViewDimension::_1D;
@@ -12,6 +13,9 @@ namespace
 			else return wgpu::TextureViewDimension::_2DArray;
 		}
 		case wgpu::TextureDimension::_3D: return wgpu::TextureViewDimension::_3D;
+		[[fallthrough]];
+		case wgpu::TextureDimension::Force32:
+			{}
 		}
 
 		assert("Invalid dimension or extents given");
@@ -28,8 +32,8 @@ namespace Gfx
 		, _viewHandle(nullptr)
 		, _extents(extents)
 		, _format(format)
-		, _numChannels(numChannels)
 		, _bytesPerChannel(bytesPerChannel)
+		, _numChannels(numChannels)
 	{
 		wgpu::TextureDescriptor desc;
 		desc.dimension = dimension;

@@ -22,8 +22,8 @@ namespace Gfx
 	}
 
 	Buffer::Buffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device)
-		: _size(size)
-		, _handle(nullptr)
+		: _handle(nullptr)
+		, _size(size)
 	{
 		wgpu::BufferDescriptor desc;
 		desc.label = label.c_str();

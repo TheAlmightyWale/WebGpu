@@ -33,7 +33,7 @@ void Terrain::Animate(float dT)
 	{
 		for (auto& anim : _cellAnim)
 		{
-			anim.currentFrameIndex = ++anim.currentFrameIndex % 8;
+			anim.currentFrameIndex = (anim.currentFrameIndex + 1) % 8;
 		}
 		_secs = 0.f;
 	}

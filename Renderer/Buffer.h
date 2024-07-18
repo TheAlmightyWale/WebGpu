@@ -15,7 +15,7 @@ namespace Gfx
 		void EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue);
 
 		inline wgpu::Buffer const& Get() const { return _handle; }
-		inline uint32_t const Size() const { return _size; }
+		inline uint32_t Size() const { return _size; }
 
 	private:
 		wgpu::Buffer _handle;
