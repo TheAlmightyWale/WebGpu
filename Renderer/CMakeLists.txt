@@ -22,13 +22,13 @@ if(DEV_MODE)
     # dynamically edit resources (like shaders), these are correctly
     # versioned.
     target_compile_definitions(Renderer PRIVATE
-        ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
+        ASSETS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Resources"
     )
 else()
     # In release mode, we just load resources relatively to wherever the
     # executable is launched from, so that the binary is portable
     target_compile_definitions(Renderer PRIVATE
-        ASSETS_DIR="./resources"
+        ASSETS_DIR="./Resources"
     )
 endif()
 

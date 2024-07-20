@@ -185,8 +185,10 @@ namespace Utils
 
 	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)
 	{
+		std::cout << "Attempting to load shader module: " << path << "\n";
 		std::ifstream file(path);
-		if (!file.is_open()) {
+		if (file.fail()) {
+			std::cerr << "Error Loading Shader: " << strerror(errno) << "\n";
 			return std::nullopt;
 		}
 
