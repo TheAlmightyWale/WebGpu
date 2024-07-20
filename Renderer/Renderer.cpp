@@ -230,8 +230,8 @@ int main()
 		colorTarget.blend = &blendState;
 		colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
-		std::filesystem::path assetsBasePath(ASSETS_DIR);
-		auto oQuadShaderModule = Utils::LoadShaderModule(assetsBasePath /= "quadShader.wgsl", device);
+		std::filesystem::path const assetsBasePath(ASSETS_DIR);
+		auto oQuadShaderModule = Utils::LoadShaderModule(assetsBasePath / "quadShader.wgsl", device);
 		if (!oQuadShaderModule)
 		{
 			std::cout << "Failed to create Quad Shader Module" << std::endl;
@@ -266,7 +266,7 @@ int main()
 		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
 
 		//Default texture load
-		TextureResource defaultRes = *Utils::LoadTexture(assetsBasePath /= "default.png");
+		TextureResource defaultRes = *Utils::LoadTexture(assetsBasePath / "default.png");
 		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
 			{defaultRes.width, defaultRes.height, 2},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
