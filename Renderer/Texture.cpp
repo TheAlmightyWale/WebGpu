@@ -65,7 +65,7 @@ namespace Gfx
 			_handle.release();
 		}
 	}
-	void Texture::EnqueueCopy(void* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset)
+	void Texture::EnqueueCopy(void const* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset)
 	{
 		wgpu::ImageCopyTexture destination;
 		destination.texture = _handle;

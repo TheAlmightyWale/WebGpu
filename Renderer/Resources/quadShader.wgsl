@@ -6,8 +6,7 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) texCoord: vec2f,
-    @location(1) @interpolate(flat) texIndex: u32,
-    @location(2) @interpolate(flat) instance : u32,
+    @location(1) @interpolate(flat) instance : u32,
 };
 
 struct Camera {
@@ -19,13 +18,13 @@ struct Animation {
     startCoord: vec2f,
     frameDim: vec2f,
     currFrame: u32,
-    _padding0: f32,
+    animId: u32,
     _padding: vec2f, //can't use vec3f here as it actully aligns on 16bytes, rather than 12
 }
 
 struct Transform {
     position: vec3f,
-    texIndex: u32,
+    _padding0: f32,
     scale: vec2f,
     _padding: vec2f,
 }
@@ -52,7 +51,6 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOut
                          out.position.zw
         );
     out.texCoord = in.texCoord;
-    out.texIndex = transform.texIndex;
     out.instance = instance;
     return out;
 }
@@ -66,7 +64,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let spriteDim: vec2f = anim.frameDim / dims; //dimensions in texture space
     let spriteTexCoords: vec2f = in.texCoord * spriteDim + normOffset;
 
-    let color = textureSample(textures, txSampler, spriteTexCoords, in.texIndex);
+    let color = textureSample(textures, txSampler, spriteTexCoords, anim.animId);
     //gamma-correction
     return vec4f(pow(color.xyz, vec3f(2.2)).xyz, color.a);
 }

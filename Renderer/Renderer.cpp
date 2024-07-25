@@ -265,21 +265,9 @@ int main()
 		};
 		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
 
-		//Default texture load
-		TextureResource defaultRes = *Utils::LoadTexture(assetsBasePath / "default.png");
-		Gfx::Texture defaultSprite{ wgpu::TextureDimension::_2D,
-			{defaultRes.width, defaultRes.height, 2},
-			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
-			defaultRes.numChannels,
-			defaultRes.channelDepthBytes,
-			wgpu::TextureFormat::RGBA8Unorm,
-			device,
-			"default sprite"};
-		//defaultSprite.EnqueueCopy(defaultRes.data.data(), defaultRes.Extents(), queue);
-
-		//Load other textures and offset copy
-		//TextureResource const& texture2 = resources.GetAnimation("cell4");
-		//animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
+		//Load other animations and offset copy
+		TextureResource const& texture2 = resources.GetAnimation("cell2");
+		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0,0,1});
 
 		//wgpu::SamplerDescriptor spriteSamplerDesc;
 		//spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
