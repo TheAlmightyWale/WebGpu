@@ -111,7 +111,25 @@ namespace Utils
 		return res;
 	}
 
-	std::optional<TextureResource> LoadAnimation(std::filesystem::path const& folderPath)
+	//Copy a contiguous set of data into a "square" of data
+	void CopyIntoSquare(
+		std::byte* pDestination,
+		uint32_t destinationBytesPerRow,
+		uint32_t columnOffsetBytes,
+		std::byte const* pSource,
+		uint32_t sourceBytesPerRow,
+		uint32_t bytesToCopy)
+	{
+		uint32_t numRows = bytesToCopy / sourceBytesPerRow;
+		for(uint32_t row = 0; row < numRows; ++row)
+		{
+			size_t dstOffset = columnOffsetBytes + row * destinationBytesPerRow;
+			size_t srcOffset = row * sourceBytesPerRow;
+			memcpy(pDestination + dstOffset, pSource + srcOffset, sourceBytesPerRow);
+		}
+	}
+
+	std::optional<TextureResource> LoadAnimationTexture(std::filesystem::path const& folderPath)
 	{
 		std::vector<TextureResource> animation;
 
@@ -166,14 +184,14 @@ namespace Utils
 		for (uint32_t i = 0; i < animation.size(); ++i) {
 			auto const& frame = animation[i];
 			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
-			for (uint32_t row = 0; row < frame.height; ++row)
-			{
-				//copy row by row so we fill in each "square" image
-				size_t dstOffset = imageColumnOffset + row * totalRowBytes;
-				size_t srcOffset = row * imageRowBytes;
-				memcpy(animationStrip.data.data() + dstOffset, frame.data.data() + srcOffset, imageRowBytes);
 
-			}
+			CopyIntoSquare(
+				animationStrip.data.data(),
+				totalRowBytes,
+				imageColumnOffset,
+				frame.data.data(),
+				imageRowBytes,
+				frame.SizeBytes());
 
 			imageColumnOffset += imageRowBytes;
 		}
