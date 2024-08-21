@@ -6,7 +6,7 @@ void ResourceManager::LoadAllAnimations(std::filesystem::path const& parentFolde
 	std::cout << "Attempting to load Animations in " << parentFolder << "\n";
 	for (auto const& dir : std::filesystem::directory_iterator{ parentFolder }) {
 		if (dir.is_directory()) {
-			auto oAnim = Utils::LoadAnimation(dir);
+			auto oAnim = Utils::LoadAnimationTexture(dir);
 			if (oAnim) m_anims.emplace((*oAnim).label, *oAnim);
 		}
 	}

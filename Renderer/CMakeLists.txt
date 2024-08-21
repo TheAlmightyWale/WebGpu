@@ -34,6 +34,7 @@ endif()
 
 if (MSVC)
     target_compile_options(Renderer PRIVATE /W4)
+    target_compile_definitions(Renderer PRIVATE -D_CRT_SECURE_NO_WARNINGS)
 else()
     target_compile_options(Renderer PRIVATE -Wall -Wextra -pedantic)
 endif()

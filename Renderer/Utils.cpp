@@ -3,7 +3,7 @@
 #include "ObjLoader.h"
 #include "ImageLoader.h"
 #include "fstream"
-#include <string.h> //memcpy_s
+#include <string.h> //memcpy
 
 namespace
 {
@@ -187,8 +187,8 @@ namespace Utils
 
 			CopyIntoSquare(
 				animationStrip.data.data(),
-				totalRowBytes,
-				imageColumnOffset,
+				static_cast<uint32_t>(totalRowBytes),
+				static_cast<uint32_t>(imageColumnOffset),
 				frame.data.data(),
 				imageRowBytes,
 				frame.SizeBytes());
