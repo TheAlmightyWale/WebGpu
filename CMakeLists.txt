@@ -28,4 +28,12 @@ add_subdirectory("ext/webgpu")
 add_subdirectory("ext/glfw3webgpu")
 add_subdirectory ("Renderer")
 
+# Option to enable/disable building tests
+option(BUILD_TESTS "Build the test suite" ON)
+
+# Include tests directory if BUILD_TESTS is enabled
+if(BUILD_TESTS)
+    add_subdirectory("Tests")
+endif()
+
 
