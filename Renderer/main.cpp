@@ -29,7 +29,7 @@ struct Uniforms
 };
 static_assert(sizeof(Uniforms) % 16 == 0);
 
-constexpr uint32_t k_mbBytes = 1024 * 1024;
+// constexpr uint32_t k_mbBytes = 1024 * 1024;
 
 uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
@@ -84,7 +84,7 @@ int main()
 			.view = translation2 * rotation2,
 			.model = rotation1 * translation1 * scale, // rotation after translation to orbit
 			.color{0.0f, 1.0f, 0.4f, 1.0f},
-			.time{1.0f}};
+			.time = 1.0f};
 
 		Gfx::Buffer uniformBuffer(
 			uniformStride + sizeof(Uniforms),
