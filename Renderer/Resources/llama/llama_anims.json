@@ -1,0 +1,7 @@
+{
+  "name":"Llama",
+  "animationDirectories": [
+    "llama_walk_left"
+  ],
+  "fps": 24
+}

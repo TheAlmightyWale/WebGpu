@@ -26,3 +26,34 @@ struct TextureResource
 	uint32_t SizeBytes() const noexcept{ return numChannels * width * height * channelDepthBytes; }
 	wgpu::Extent3D Extents() const noexcept { return { width, height, 1 }; }
 };
+
+struct Resolution
+{
+	uint16_t width;
+	uint16_t height;
+};
+
+struct Animation
+{
+	uint32_t startX;
+	uint32_t startY;
+	uint32_t length;
+	Resolution frameRes;
+	std::string name;
+};
+
+struct AnimationSet
+{
+	std::string name;
+	std::vector<Animation> animations;
+	uint8_t fps;
+	TextureResource atlas;
+};
+
+// Data expected to be in Json files describing a set of animations to be loaded
+struct AnimationDescriptor
+{
+	std::string name;
+	std::vector<std::string> animationDirectories;
+	uint32_t fps;
+};

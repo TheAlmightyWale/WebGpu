@@ -75,8 +75,8 @@ namespace Gfx
 
 		wgpu::TextureDataLayout source;
 		source.offset = 0;
-		source.bytesPerRow = 4 /*4 byte channels, rgba*/ * _extents.width;
-		source.rowsPerImage = _extents.height;
+		source.bytesPerRow = 4 /*4 byte channels, rgba*/ * writeSize.width;
+		source.rowsPerImage = writeSize.height;
 		
 		uint32_t sizeBytes = writeSize.width * writeSize.height * writeSize.depthOrArrayLayers * _bytesPerChannel * _numChannels;
 		queue.writeTexture(destination, pData, sizeBytes , source, writeSize);

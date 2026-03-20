@@ -1,0 +1,7 @@
+{
+  "name":"Cell1",
+  "animationDirectories": [
+    "cell1_anim"
+  ],
+  "fps": 2
+}

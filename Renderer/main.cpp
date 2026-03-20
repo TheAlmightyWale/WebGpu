@@ -154,7 +154,8 @@ int main()
 		// Temp animation load
 		ResourceManager resources;
 		resources.LoadAllAnimations(assetsBasePath);
-		auto anim = resources.GetAnimation("cell1");
+		auto const& animSet = resources.GetAnimation("Cell1");
+		auto const& anim = animSet.atlas;
 		// Upload anim strip
 		Gfx::Texture animTex{
 			wgpu::TextureDimension::_2D,
@@ -168,7 +169,8 @@ int main()
 		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
 
 		// Load other animations and offset copy
-		TextureResource const &texture2 = resources.GetAnimation("cell2");
+		auto const& animSet2 = resources.GetAnimation("Cell2");
+		TextureResource const &texture2 = animSet2.atlas;
 		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0, 0, 1});
 
 		// wgpu::SamplerDescriptor spriteSamplerDesc;

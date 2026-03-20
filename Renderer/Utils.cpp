@@ -8,7 +8,7 @@
 namespace
 {
 
-	std::optional<Object> LoadGeometryObj_(std::filesystem::path const &path)
+	std::optional<Object> LoadGeometryObj_(std::filesystem::path const& path)
 	{
 		tinyobj::ObjReader reader;
 		if (!reader.ParseFromFile(path.string()))
@@ -21,15 +21,8 @@ namespace
 		if (!reader.Warning().empty())
 			std::cout << "TinyObjReader: " << reader.Warning() << "\n";
 
-		auto const &attrib = reader.GetAttrib();
-		auto const &shapes = reader.GetShapes();
-		// auto const& materials = reader.GetMaterials();
-
-		// size_t numIndices = 0;
-		// for (auto const& shape : shapes)
-		//{
-		//	numIndices += shape.mesh.indices.size();
-		// }
+		auto const& attrib = reader.GetAttrib();
+		auto const& shapes = reader.GetShapes();
 
 		Object result;
 		// Loop over shapes
@@ -77,7 +70,7 @@ namespace
 
 namespace Utils
 {
-	std::optional<Object> LoadGeometry(std::filesystem::path const &path)
+	std::optional<Object> LoadGeometry(std::filesystem::path const& path)
 	{
 		if (path.extension() == ".obj")
 		{
@@ -90,7 +83,7 @@ namespace Utils
 		}
 	}
 
-	std::optional<TextureResource> LoadTexture(std::filesystem::path const &path)
+	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path)
 	{
 		TextureResource res;
 		int x, y, n, ok;
@@ -103,7 +96,7 @@ namespace Utils
 			return std::nullopt;
 		}
 
-		stbi_uc *pData = stbi_load(path.generic_string().c_str(), &x, &y, &n, 0);
+		stbi_uc* pData = stbi_load(path.generic_string().c_str(), &x, &y, &n, 0);
 		res.height = (uint32_t)y;
 		res.width = (uint32_t)x;
 		res.channelDepthBytes = 1; // stbi uses 8bit channels
@@ -111,7 +104,7 @@ namespace Utils
 		uint32_t dataSizeBytes = (uint32_t)(x * y * n);
 		res.data.resize(dataSizeBytes);
 		res.label = path.stem().string();
-		std::copy((std::byte *)pData, (std::byte *)pData + dataSizeBytes, res.data.data());
+		std::copy((std::byte*)pData, (std::byte*)pData + dataSizeBytes, res.data.data());
 
 		stbi_image_free(pData);
 
@@ -120,10 +113,10 @@ namespace Utils
 
 	// Copy a contiguous set of data into a "square" of data
 	void CopyIntoSquare(
-		std::byte *pDestination,
+		std::byte* pDestination,
 		uint32_t destinationBytesPerRow,
 		uint32_t columnOffsetBytes,
-		std::byte const *pSource,
+		std::byte const* pSource,
 		uint32_t sourceBytesPerRow,
 		uint32_t bytesToCopy)
 	{
@@ -136,11 +129,11 @@ namespace Utils
 		}
 	}
 
-	std::optional<TextureResource> LoadAnimationTexture(std::filesystem::path const &folderPath)
+	std::optional<std::pair<Animation, TextureResource>> LoadAnimation(std::filesystem::path const& folderPath)
 	{
-		std::vector<TextureResource> animation;
+		std::vector<TextureResource> textures;
 
-		for (auto const &directoryEntry : std::filesystem::directory_iterator(folderPath))
+		for (auto const& directoryEntry : std::filesystem::directory_iterator(folderPath))
 		{
 			auto path = directoryEntry.path();
 			if (!path.has_filename())
@@ -150,11 +143,11 @@ namespace Utils
 			{
 				auto oTexture = LoadTexture(path);
 				if (oTexture)
-					animation.push_back(std::move(*oTexture));
+					textures.push_back(std::move(*oTexture));
 			}
 		}
 
-		if (animation.empty())
+		if (textures.empty())
 		{
 			std::cout << "Failed to load Animation: " << folderPath << "\n";
 			return std::nullopt;
@@ -163,7 +156,7 @@ namespace Utils
 		// Pack animation into a single row for now
 		// images expected to be in format <name>_<frameId>
 		// sort by frame number
-		std::sort(animation.begin(), animation.end(), [](TextureResource const &l, TextureResource const &r)
+		std::sort(textures.begin(), textures.end(), [](TextureResource const& l, TextureResource const& r)
 				  {
 			size_t lPos = l.label.find('_') + 1; // want everything after _
 			std::string lFrame = l.label.substr(lPos);
@@ -175,13 +168,21 @@ namespace Utils
 
 			return lFrameNum < rFrameNum; });
 
-		std::string animationName = animation[0].label.substr(0, animation[0].label.find('_'));
+		std::string animationName = textures[0].label.substr(0, textures[0].label.find('_'));
+
+		Animation animation;
+		animation.startX = 0;
+		animation.startY = 0;
+		animation.length = (uint32_t)textures.size();
+		animation.frameRes.width = (uint16_t)textures[0].width;
+		animation.frameRes.height = (uint16_t)textures[0].height;
+		animation.name = animationName;
 
 		TextureResource animationStrip{
-			animation[0].width * (uint32_t)animation.size(),
-			animation[0].height,
-			animation[0].channelDepthBytes,
-			animation[0].numChannels,
+			textures[0].width * (uint32_t)textures.size(),
+			textures[0].height,
+			textures[0].channelDepthBytes,
+			textures[0].numChannels,
 			{} /*data*/,
 			animationName};
 
@@ -189,10 +190,10 @@ namespace Utils
 
 		// Copy frames into strip
 		size_t imageColumnOffset = 0;
-		size_t totalRowBytes = animation[0].width * animation[0].channelDepthBytes * animation[0].numChannels * animation.size();
-		for (uint32_t i = 0; i < animation.size(); ++i)
+		size_t totalRowBytes = textures[0].width * textures[0].channelDepthBytes * textures[0].numChannels * textures.size();
+		for (uint32_t i = 0; i < textures.size(); ++i)
 		{
-			auto const &frame = animation[i];
+			auto const& frame = textures[i];
 			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
 
 			CopyIntoSquare(
@@ -208,10 +209,71 @@ namespace Utils
 
 		std::cout << "Loaded Animation at: " << folderPath << "\n";
 
-		return animationStrip;
+		return {{animation, animationStrip}};
 	}
 
-	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const &path, wgpu::Device device)
+	//Rectangle packs textures. Right now we just stack textures on top of each other
+	std::optional<PackResult> PackTextures(std::string const& atlasName, std::vector<TextureResource*> const& textures){
+		if(textures.empty()){
+			std::cout << "Attempting to pack an empty list of textures" << std::endl;
+			return std::nullopt;
+		}
+		
+		PackResult result;
+
+		uint16_t maxWidth = 0;
+		uint16_t totalHeight = 0;
+		
+		std::for_each(textures.begin(), textures.end(), [&maxWidth, &totalHeight](TextureResource const* const tex){
+			assert(tex->width < std::numeric_limits<uint16_t>::max());
+			assert((uint32_t)totalHeight + tex->height < std::numeric_limits<uint16_t>::max());
+
+			maxWidth = std::max(maxWidth, (uint16_t)tex->width);
+			totalHeight += (uint16_t)tex->height; 
+		});
+
+		TextureResource atlas{
+			maxWidth,
+			totalHeight,
+			textures[0]->channelDepthBytes,
+			textures[0]->numChannels,
+			{},
+			atlasName
+		};
+
+		atlas.data.resize(atlas.SizeBytes());
+
+		uint16_t yPos = 0;
+		uint16_t xPos = 0;
+		
+		for(auto const& tex : textures)
+		{
+			StartLocation loc;
+			loc.x = xPos;
+			loc.y = yPos;
+
+			//copy individual texture into atlas
+			CopyIntoSquare(atlas.data.data(),
+				atlas.width,
+				xPos,
+				tex->data.data(),
+				tex->width,
+				(uint32_t)tex->data.size() 
+			);
+
+			//insert result
+			result.labelledStartLocations.insert({tex->label, loc});
+
+			//update start positions
+			yPos += (uint16_t)tex->height;
+		}
+
+		result.textureAtlas = atlas;
+
+		return result;
+	}
+
+	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)
 	{
 		std::cout << "Attempting to load shader module: " << path << "\n";
 		std::ifstream file(path);
