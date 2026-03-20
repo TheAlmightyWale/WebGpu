@@ -3,7 +3,7 @@
 #include <vector>
 #include "QuadDefs.h"
 
-//Handles generating a grid of tiles of stores their locations
+//Handles generating a grid of tiles and stores their locations
 // eventually will handle also generating the associated initial height map
 // eventually having a hierarchical layout so that we can do things like modify height and flow fields
 class Terrain {
