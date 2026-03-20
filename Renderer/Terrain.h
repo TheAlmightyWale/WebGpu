@@ -2,6 +2,9 @@
 #include <cstdint>
 #include <vector>
 #include "QuadDefs.h"
+#include "ResourceDefs.h"
+
+class ResourceManager;
 
 //Handles generating a grid of tiles and stores their locations
 // eventually will handle also generating the associated initial height map
@@ -9,7 +12,7 @@
 class Terrain {
 public:
 
-	Terrain(uint32_t width, uint32_t height, uint32_t cellSize);
+	Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceManager const& resourceManager);
 	inline std::vector<QuadTransform> const& Cells() {
 		return _cells;
 	}
@@ -22,6 +25,7 @@ public:
 private:
 	std::vector<QuadTransform> _cells;
 	std::vector<AnimUniform> _cellAnim;
+	std::vector<Animation> _animations;
 
 	float _secs = 0.f;
 

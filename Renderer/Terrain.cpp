@@ -1,9 +1,15 @@
 #include "Terrain.h"
+#include "ResourceManager.h"
 
-Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize)
+Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceManager const& resourceManager)
 {
 	uint32_t totalCells = width * height;
 	_cells.reserve(totalCells);
+
+	auto cell1Anim = resourceManager.GetAnimation("Cell1");
+	auto cell2Anim = resourceManager.GetAnimation("Cell2");
+	_animations.push_back(cell1Anim.animations[0]);
+	_animations.push_back(cell2Anim.animations[0]);
 
 	for (uint32_t cellId = 0; cellId < totalCells; cellId++) {
 		uint32_t colPos = cellId % width;
@@ -16,11 +22,14 @@ Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize)
 		};
 		_cells.emplace_back(cell);
 
+		uint32_t animId = cellId % 2;
+		Animation animation = _animations[animId];
+		
 		AnimUniform anim;
-		anim.currentFrameIndex = cellId % 8;
-		anim.animId = cellId % 2;
+		anim.currentFrameIndex = cellId % animation.length;
+		anim.animId = animId;
 		anim.startCoord = { 0,0 };
-		anim.frameDimensions = { 50,38 };
+		anim.frameDimensions = { animation.frameRes.width, animation.frameRes.height };
 		_cellAnim.emplace_back(anim);
 	}
 }
@@ -33,7 +42,8 @@ void Terrain::Animate(float dT)
 	{
 		for (auto& anim : _cellAnim)
 		{
-			anim.currentFrameIndex = (anim.currentFrameIndex + 1) % 8;
+			uint32_t animLength = _animations[anim.animId].length;
+			anim.currentFrameIndex = (anim.currentFrameIndex + 1) % animLength;
 		}
 		_secs = 0.f;
 	}

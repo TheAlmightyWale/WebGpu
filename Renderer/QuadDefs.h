@@ -19,7 +19,7 @@ static_assert(sizeof(CamUniforms) % 16 == 0);
 
 struct AnimUniform
 {
-	Vec2f startCoord = { 0.f,0.f };
+	Vec2f startCoord = { 0.f, 0.f };
 	Vec2f frameDimensions{ 0.f, 0.f };
 	uint32_t currentFrameIndex = 0;
 	uint32_t animId = std::numeric_limits<uint32_t>::max();

@@ -188,7 +188,7 @@ int main()
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
-		Terrain terrain(10, 10, 50);
+		Terrain terrain(10, 10, 50, resources);
 
 		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Transform Buffer", device};
