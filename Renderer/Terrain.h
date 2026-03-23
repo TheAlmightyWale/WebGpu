@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <vector>
 #include "QuadDefs.h"
-#include "ResourceDefs.h"
+#include "Core/ResourceDefs.h"
 
 class ResourceManager;
 

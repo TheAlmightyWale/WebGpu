@@ -1,16 +1,15 @@
 #pragma once
 #include <optional>
 #include <filesystem>
-#include "webgpu.h"
 
 #include "ResourceDefs.h"
+#include "MathDefs.h"
 
 namespace Utils
 {
 	std::optional<Object> LoadGeometry(std::filesystem::path const& path);
 	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path);
 	std::optional<std::pair<Animation,TextureResource>> LoadAnimation(std::filesystem::path const& folderPath);
-	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device);
 
 	struct StartLocation
 	{
@@ -25,4 +24,12 @@ namespace Utils
 	};
 
 	std::optional<PackResult> PackTextures(std::string const& atlasName, std::vector<TextureResource*> const& textures);
+
+	void Blit(std::byte* pDestination,
+		Vec2u destinationOffset,
+		uint32_t destinationRowSize,
+		std::byte const* pSource,
+		uint32_t sourceRowSize,
+		Rect sourceLocation,
+		uint32_t strideBytes);
 }

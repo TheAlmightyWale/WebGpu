@@ -1,7 +1,7 @@
 #pragma once
 #include <array>
-#include "webgpu.h"
-#include "MathDefs.h"
+#include "Core/webgpu.h"
+#include "Core/MathDefs.h"
 #include "Buffer.h"
 #include "Texture.h"
 

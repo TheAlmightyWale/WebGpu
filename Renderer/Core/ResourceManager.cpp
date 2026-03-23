@@ -113,7 +113,7 @@ ResourceManager::AnimationMapKey ResourceManager::LoadAnimationSet(std::filesyst
 	}
 
 	//update animation set with any remaining details
-	animationSet.atlas = packResult.textureAtlas;
+	animationSet.animTexture = packResult.textureAtlas;
 
 	//place in to resource manager
 	m_anims.insert({animationSet.name, animationSet});

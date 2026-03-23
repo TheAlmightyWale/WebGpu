@@ -1,5 +1,5 @@
 #include "Terrain.h"
-#include "ResourceManager.h"
+#include "Core/ResourceManager.h"
 
 Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceManager const& resourceManager)
 {

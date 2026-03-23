@@ -2,8 +2,9 @@
 #include <filesystem>
 #include "ObjLoader.h"
 #include "ImageLoader.h"
-#include "fstream"
+#include <fstream>
 #include <string.h> //memcpy
+#include "MathDefs.h"
 
 namespace
 {
@@ -112,7 +113,7 @@ namespace Utils
 	}
 
 	// Copy a contiguous set of data into a "square" of data
-	void CopyIntoSquare(
+	void CopyIntoRect(
 		std::byte* pDestination,
 		uint32_t destinationBytesPerRow,
 		uint32_t columnOffsetBytes,
@@ -126,6 +127,41 @@ namespace Utils
 			size_t dstOffset = columnOffsetBytes + row * destinationBytesPerRow;
 			size_t srcOffset = row * sourceBytesPerRow;
 			memcpy(pDestination + dstOffset, pSource + srcOffset, sourceBytesPerRow);
+		}
+	}
+
+	//it is assumed offsets do not take in to account the stride in bytes
+	// i.e. if a texture has 4 bytes per pixel we assume offset is in pixel count, not total bytes
+	// if it is in byte count then strideBytes must be set to 1
+	void Blit(
+		std::byte* pDestination,
+		Vec2u destinationOffset,
+		uint32_t destinationRowSize,
+		std::byte const* pSource,
+		uint32_t sourceRowSize,
+		Rect sourceLocation,
+		uint32_t strideBytes)
+	{
+		//verify we can actually fit source row into remaining destination row (with offset)
+		assert(destinationRowSize >= sourceLocation.pos.x + sourceLocation.dims.x);
+		
+		//move destination pointer to it's offset
+		uint32_t destOffset = ((destinationOffset.y * destinationRowSize) + destinationOffset.x) * strideBytes;
+		pDestination += destOffset;
+
+		//move source pointer to it's offset
+		uint32_t srcOffset = ((sourceLocation.pos.y * sourceRowSize) + sourceLocation.pos.x) * strideBytes;
+		pSource += srcOffset;
+
+		//copy row by row
+		for(uint32_t i = 0; i < sourceLocation.dims.y; i++)
+		{
+			//copy row of memory
+			memcpy(pDestination, pSource, sourceLocation.dims.x * strideBytes);
+			//advance dest by destRow
+			pDestination += destinationRowSize * strideBytes;
+			//advance src by srcRow	
+			pSource += sourceRowSize * strideBytes;
 		}
 	}
 
@@ -196,7 +232,7 @@ namespace Utils
 			auto const& frame = textures[i];
 			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
 
-			CopyIntoSquare(
+			CopyIntoRect(
 				animationStrip.data.data(),
 				static_cast<uint32_t>(totalRowBytes),
 				static_cast<uint32_t>(imageColumnOffset),
@@ -253,7 +289,7 @@ namespace Utils
 			loc.y = yPos;
 
 			//copy individual texture into atlas
-			CopyIntoSquare(atlas.data.data(),
+			CopyIntoRect(atlas.data.data(),
 				atlas.width,
 				xPos,
 				tex->data.data(),
@@ -271,46 +307,5 @@ namespace Utils
 		result.textureAtlas = atlas;
 
 		return result;
-	}
-
-	std::optional<wgpu::ShaderModule> LoadShaderModule(std::filesystem::path const& path, wgpu::Device device)
-	{
-		std::cout << "Attempting to load shader module: " << path << "\n";
-		std::ifstream file(path);
-		if (file.fail())
-		{
-			std::string errMsg;
-			errMsg.reserve(256);
-			strerror_s(errMsg.data(), errMsg.capacity(), errno);
-			std::cerr << "Error Loading Shader: " << errMsg << "\n";
-			return std::nullopt;
-		}
-
-		file.seekg(0, std::ios::end);
-		size_t size = file.tellg();
-		std::string shaderSource(size, ' ');
-		file.seekg(0);
-
-		file.read(shaderSource.data(), size);
-
-		wgpu::ShaderModuleWGSLDescriptor wgslDesc{};
-		wgslDesc.chain.next = nullptr;
-		wgslDesc.chain.sType = wgpu::SType::ShaderModuleWGSLDescriptor;
-		wgslDesc.code = shaderSource.c_str();
-
-		wgpu::ShaderModuleDescriptor desc{};
-		desc.hintCount = 0;
-		desc.hints = nullptr;
-		desc.nextInChain = &wgslDesc.chain;
-
-		wgpu::ShaderModule module = device.createShaderModule(desc);
-		if (module)
-		{
-			return module;
-		}
-		else
-		{
-			return std::nullopt;
-		}
 	}
 }

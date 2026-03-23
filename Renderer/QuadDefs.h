@@ -1,5 +1,5 @@
 #pragma once
-#include "MathDefs.h"
+#include "Core/MathDefs.h"
 
 struct QuadTransform
 {

@@ -20,10 +20,11 @@ enable_testing()
 
 # Include directories for the main project
 include_directories(${CMAKE_SOURCE_DIR}/Renderer)
+include_directories(${CMAKE_SOURCE_DIR}/Renderer/Core)
 
 # Create test executable
 add_executable(RendererTests
-  ExampleTest.cpp
+  BlitTests.cpp
 )
 
 # Link test executable with Google Test and the main project libraries
@@ -34,6 +35,7 @@ target_link_libraries(RendererTests
   glfw
   webgpu
   glfw3webgpu
+  Core
 )
 
 # Set C++ standard

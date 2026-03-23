@@ -1,22 +1,23 @@
 ﻿// Defines the entry point for the application.
 #include <iostream>
 
-#include "webgpu.h"
-#include "Utils.h"
+#include "Core/webgpu.h"
+#include "Core/Utils.h"
 #include <glfw3webgpu.h>
 #include <array>
-#include "MathDefs.h"
-#include "MeshDefs.h"
+#include "Core/MathDefs.h"
+#include "Core/MeshDefs.h"
 #include "Buffer.h"
 #include "Texture.h"
 #include "Quad.h"
 #include "QuadRenderPipeline.h"
 #include "QuadDefs.h"
 #include "Terrain.h"
-#include "Chrono.h"
-#include "ResourceManager.h"
+#include "Core/Chrono.h"
+#include "Core/ResourceManager.h"
 #include "Renderer.h"
 #include "GraphicsContext.h"
+#include "ShaderLoader.h"
 
 struct Uniforms
 {
@@ -134,7 +135,7 @@ int main()
 		colorTarget.writeMask = wgpu::ColorWriteMask::All;
 
 		std::filesystem::path const assetsBasePath(ASSETS_DIR);
-		auto oQuadShaderModule = Utils::LoadShaderModule(assetsBasePath / "quadShader.wgsl", device);
+		auto oQuadShaderModule = Gfx::LoadShaderModule(assetsBasePath / "quadShader.wgsl", device);
 		if (!oQuadShaderModule)
 		{
 			std::cout << "Failed to create Quad Shader Module" << std::endl;
@@ -155,7 +156,7 @@ int main()
 		ResourceManager resources;
 		resources.LoadAllAnimations(assetsBasePath);
 		auto const& animSet = resources.GetAnimation("Cell1");
-		auto const& anim = animSet.atlas;
+		auto const& anim = animSet.animTexture;
 		// Upload anim strip
 		Gfx::Texture animTex{
 			wgpu::TextureDimension::_2D,
@@ -170,7 +171,7 @@ int main()
 
 		// Load other animations and offset copy
 		auto const& animSet2 = resources.GetAnimation("Cell2");
-		TextureResource const &texture2 = animSet2.atlas;
+		TextureResource const &texture2 = animSet2.animTexture;
 		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0, 0, 1});
 
 		// wgpu::SamplerDescriptor spriteSamplerDesc;

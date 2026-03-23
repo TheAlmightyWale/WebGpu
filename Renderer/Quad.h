@@ -1,5 +1,4 @@
 #include <array>
-#include "MeshDefs.h"
 
 namespace Gfx
 {

@@ -1,5 +1,5 @@
 #pragma once
-#include "webgpu.h"
+#include "Core/webgpu.h"
 #include "Renderer.h"
 
 // Encapsulates WebGPU instance, adapter, device, queue, and surface initialization.

@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <string>
-#include "webgpu.h"
+#include "Core/webgpu.h"
 
 namespace Gfx
 {

@@ -1,5 +1,4 @@
 #include "QuadRenderPipeline.h"
-#include "Utils.h"
 #include "Quad.h"
 #include "QuadDefs.h"
 

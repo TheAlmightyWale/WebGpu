@@ -47,7 +47,8 @@ struct AnimationSet
 	std::string name;
 	std::vector<Animation> animations;
 	uint8_t fps;
-	TextureResource atlas;
+	uint8_t atlasId;
+	TextureResource animTexture;
 };
 
 // Data expected to be in Json files describing a set of animations to be loaded
