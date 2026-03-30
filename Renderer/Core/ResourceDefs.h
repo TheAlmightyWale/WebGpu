@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <limits>
+#include <cstdint>
 #include "MeshDefs.h"
 #include "webgpu.h"
 
@@ -40,15 +42,17 @@ struct Animation
 	uint32_t length;
 	Resolution frameRes;
 	std::string name;
+	TextureResource texture;
 };
+
+uint8_t const k_invalidAtlasId = std::numeric_limits<uint8_t>::max();
 
 struct AnimationSet
 {
 	std::string name;
 	std::vector<Animation> animations;
 	uint8_t fps;
-	uint8_t atlasId;
-	TextureResource animTexture;
+	uint8_t atlasId = k_invalidAtlasId;
 };
 
 // Data expected to be in Json files describing a set of animations to be loaded

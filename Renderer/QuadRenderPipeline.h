@@ -3,7 +3,7 @@
 #include "Core/webgpu.h"
 #include "Core/MathDefs.h"
 #include "Buffer.h"
-#include "Texture.h"
+#include "GpuTexture.h"
 
 namespace Gfx
 {
@@ -14,7 +14,7 @@ namespace Gfx
 		QuadRenderPipeline(wgpu::Device device, wgpu::ShaderModule shaders, wgpu::ColorTargetState outputTarget, wgpu::DepthStencilState depthStencil);
 		~QuadRenderPipeline();
 
-		void BindData(Gfx::Buffer const& transformData, Gfx::Texture const& texture,
+		void BindData(Gfx::Buffer const& transformData, Gfx::GpuTexture const& texture,
 			Gfx::Buffer const& cameraData, Gfx::Buffer const& animationData, wgpu::Device device);
 
 		inline wgpu::RenderPipeline Get() const noexcept {

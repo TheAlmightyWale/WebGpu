@@ -1,4 +1,4 @@
-#include "Texture.h"
+#include "GpuTexture.h"
 
 namespace
 {
@@ -26,7 +26,7 @@ namespace
 
 namespace Gfx
 {
-	Texture::Texture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags,
+	GpuTexture::GpuTexture(wgpu::TextureDimension dimension, wgpu::Extent3D extents, int usageFlags,
 		uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device, std::string const& label)
 		: _handle(nullptr)
 		, _viewHandle(nullptr)
@@ -59,13 +59,27 @@ namespace Gfx
 		_viewHandle = _handle.createView(vDesc);
 	}
 
-	Texture::~Texture() {
+	GpuTexture::~GpuTexture() {
 		if (_handle) {
 			_handle.destroy();
 			_handle.release();
 		}
 	}
-	void Texture::EnqueueCopy(void const* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset)
+
+	/*static Texture CreateFromTextureResource(TextureResource res, int usageFlags, wgpu::Device device, std::string const& label)
+	{
+		return Gfx::Texture{
+				wgpu::TextureDimension::_1D,
+				{res.width, res.height, 1},
+				usageFlags,
+				res.numChannels,
+				res.channelDepthBytes,
+				wgpu::TextureFormat::RGBA8Unorm,
+				device,
+				label};
+	}*/
+
+	void GpuTexture::EnqueueCopy(void const* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset)
 	{
 		wgpu::ImageCopyTexture destination;
 		destination.texture = _handle;

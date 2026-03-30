@@ -12,7 +12,7 @@ using Vec2u = glm::uvec2;
 
 constexpr float PI = 3.14159265358979323846f;
 
-    //width, height, bottom left coord
+    //bottom left, width, height coord
 struct Rect{
     Vec2u pos;
     Vec2u dims;

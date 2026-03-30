@@ -3,9 +3,12 @@
 
 #include "glaze/glaze.hpp"
 
+namespace Gfx
+{
+
 namespace Detail
 {
-	std::optional<std::filesystem::path> FindDescriptorFile(std::filesystem::path directory)
+	std::optional<std::filesystem::path> FindDescriptorFile_(std::filesystem::path directory)
 	{
 		for(auto const& entry : std::filesystem::directory_iterator{directory})
 		{
@@ -23,7 +26,23 @@ namespace Detail
 
 		return std::nullopt;
 	}
+
+	ResourceManager::AtlasArray GenerateAtlasArray_(uint32_t atlasWidth, uint32_t atlasHeight)
+	{
+		return {
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_0"),
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_1"),
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_2"),
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_3"),
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_4")
+		};
+	}
+
 }
+
+ResourceManager::ResourceManager(uint32_t atlasWidth, uint32_t atlasHeight)
+	: m_atlas{Detail::GenerateAtlasArray_(atlasWidth, atlasHeight)}
+{}
 
 std::vector<ResourceManager::AnimationMapKey> ResourceManager::LoadAllAnimations(std::filesystem::path const& parentFolder)
 {
@@ -33,7 +52,7 @@ std::vector<ResourceManager::AnimationMapKey> ResourceManager::LoadAllAnimations
 		if (dir.is_directory()) {
 			//find json descriptor in directory
 			//then load animationSet described by that
-			std::optional<std::filesystem::path> animationDescriptorFile = Detail::FindDescriptorFile(dir.path().lexically_normal());
+			std::optional<std::filesystem::path> animationDescriptorFile = Detail::FindDescriptorFile_(dir.path().lexically_normal());
 			if(!animationDescriptorFile){
 				std::cout << "Could not find descriptor file in " << dir << std::endl;
 				continue;
@@ -64,8 +83,6 @@ ResourceManager::AnimationMapKey ResourceManager::LoadAnimationSet(std::filesyst
 	assert(ad.fps < std::numeric_limits<uint8_t>::max());
 	animationSet.fps = (uint8_t)ad.fps;
 
-	std::vector<TextureResource> textures;
-
 	//Go through described animations and load them
 	for(auto const& animationDir : ad.animationDirectories)
 	{
@@ -85,35 +102,25 @@ ResourceManager::AnimationMapKey ResourceManager::LoadAnimationSet(std::filesyst
 			continue;
 		}
 
-		auto [animation, texture] = *oAnim;
-
 		//add to animationSet
-		animationSet.animations.push_back(animation);
-		textures.push_back(texture);
+		animationSet.animations.push_back(*oAnim);
 	}
 
-	//compose texture atlas
-	std::vector<TextureResource*> texturePointers;
-	for(auto& tex : textures){
-		texturePointers.push_back(&tex);
+	
+	for(auto& atlas : m_atlas){
+		//attempt to pack into atlas
+		bool res = atlas.AddToAtlas(animationSet);
+		//if this fails try the next one, otherwise done
+		if(res) break;
 	}
-	auto oPackResult = Utils::PackTextures(animationSet.name + "_atlas", texturePointers);
 
-	if(!oPackResult){
-		std::cout << "failed to pack " << animationSet.name << std::endl;
+	//check if animationset has an atlas ID set
+	//if not we have failed to pack it entirely
+	if(animationSet.atlasId == k_invalidAtlasId)
+	{
+		std::cout << "Failed to pack " << animationSet.name << " in Resource Manager atlases." << std::endl;
 		return "";
 	}
-
-	//We assume order of animation and order of start locations are the same
-	Utils::PackResult packResult = *oPackResult;
-	for(auto& animation : animationSet.animations){
-		Utils::StartLocation loc = packResult.labelledStartLocations[animation.name];
-		animation.startX = loc.x;
-		animation.startY = loc.y;
-	}
-
-	//update animation set with any remaining details
-	animationSet.animTexture = packResult.textureAtlas;
 
 	//place in to resource manager
 	m_anims.insert({animationSet.name, animationSet});
@@ -131,6 +138,8 @@ AnimationSet const& ResourceManager::GetAnimation(AnimationMapKey id) const noex
 ResourceManager::AnimationMap const& ResourceManager::GetAllAnimations() const noexcept
 {
 	return m_anims;
+}
+
 }
 
 

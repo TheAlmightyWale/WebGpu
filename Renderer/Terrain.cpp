@@ -1,6 +1,9 @@
 #include "Terrain.h"
 #include "Core/ResourceManager.h"
 
+namespace Gfx
+{
+
 Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceManager const& resourceManager)
 {
 	uint32_t totalCells = width * height;
@@ -49,4 +52,6 @@ void Terrain::Animate(float dT)
 	}
 
 	_secs += dT;
+}
+
 }

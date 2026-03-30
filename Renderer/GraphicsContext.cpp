@@ -10,6 +10,7 @@
 
 namespace
 {
+    constexpr uint32_t k_kbBytes = 1024;
     constexpr uint32_t k_mbBytes = 1024 * 1024;
 }
 
@@ -102,8 +103,8 @@ void GraphicsContext::ConfigureDeviceLimits()
     _requiredLimits.limits.maxUniformBuffersPerShaderStage = 3;
     _requiredLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(AnimUniform);
     _requiredLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
-    _requiredLimits.limits.maxTextureDimension1D = k_screenHeight;
-    _requiredLimits.limits.maxTextureDimension2D = k_screenWidth;
+    _requiredLimits.limits.maxTextureDimension1D = 16 * k_kbBytes;
+    _requiredLimits.limits.maxTextureDimension2D = 16 * k_kbBytes;
     _requiredLimits.limits.maxTextureArrayLayers = 2;
     _requiredLimits.limits.maxSampledTexturesPerShaderStage = 1;
     _requiredLimits.limits.maxSamplersPerShaderStage = 1;

@@ -31,7 +31,7 @@ public:
     uint32_t GetUniformAlignment() const { return _deviceLimits.limits.minUniformBufferOffsetAlignment; }
 
     // Returns the full device limits structure
-    wgpu::SupportedLimits const &GetDeviceLimits() const { return _deviceLimits; }
+    wgpu::SupportedLimits const& GetDeviceLimits() const { return _deviceLimits; }
 
 private:
     void InitializeInstance();

@@ -165,7 +165,7 @@ namespace Utils
 		}
 	}
 
-	std::optional<std::pair<Animation, TextureResource>> LoadAnimation(std::filesystem::path const& folderPath)
+	std::optional<Animation> LoadAnimation(std::filesystem::path const& folderPath)
 	{
 		std::vector<TextureResource> textures;
 
@@ -214,7 +214,7 @@ namespace Utils
 		animation.frameRes.height = (uint16_t)textures[0].height;
 		animation.name = animationName;
 
-		TextureResource animationStrip{
+		animation.texture = TextureResource{
 			textures[0].width * (uint32_t)textures.size(),
 			textures[0].height,
 			textures[0].channelDepthBytes,
@@ -222,7 +222,7 @@ namespace Utils
 			{} /*data*/,
 			animationName};
 
-		animationStrip.data.resize(animationStrip.SizeBytes());
+		animation.texture.data.resize(animation.texture.SizeBytes());
 
 		// Copy frames into strip
 		size_t imageColumnOffset = 0;
@@ -233,7 +233,7 @@ namespace Utils
 			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
 
 			CopyIntoRect(
-				animationStrip.data.data(),
+				animation.texture.data.data(),
 				static_cast<uint32_t>(totalRowBytes),
 				static_cast<uint32_t>(imageColumnOffset),
 				frame.data.data(),
@@ -245,7 +245,7 @@ namespace Utils
 
 		std::cout << "Loaded Animation at: " << folderPath << "\n";
 
-		return {{animation, animationStrip}};
+		return {animation};
 	}
 
 	//Rectangle packs textures. Right now we just stack textures on top of each other

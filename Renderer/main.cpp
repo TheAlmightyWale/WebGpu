@@ -8,7 +8,7 @@
 #include "Core/MathDefs.h"
 #include "Core/MeshDefs.h"
 #include "Buffer.h"
-#include "Texture.h"
+#include "GpuTexture.h"
 #include "Quad.h"
 #include "QuadRenderPipeline.h"
 #include "QuadDefs.h"
@@ -153,12 +153,14 @@ int main()
 		depthStencilState.stencilWriteMask = 0;
 
 		// Temp animation load
-		ResourceManager resources;
+		uint32_t const k_atlasWidth = gfx.GetDeviceLimits().limits.maxTextureDimension1D;
+		uint32_t const k_atlasHeight = gfx.GetDeviceLimits().limits.maxTextureDimension2D;
+		Gfx::ResourceManager resources(k_atlasWidth, k_atlasHeight);
 		resources.LoadAllAnimations(assetsBasePath);
 		auto const& animSet = resources.GetAnimation("Cell1");
-		auto const& anim = animSet.animTexture;
+		auto const& anim = animSet.animations[0].texture;
 		// Upload anim strip
-		Gfx::Texture animTex{
+		Gfx::GpuTexture animTex{
 			wgpu::TextureDimension::_2D,
 			{anim.width, anim.height, 2},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
@@ -171,8 +173,10 @@ int main()
 
 		// Load other animations and offset copy
 		auto const& animSet2 = resources.GetAnimation("Cell2");
-		TextureResource const &texture2 = animSet2.animTexture;
+		TextureResource const &texture2 = animSet2.animations[0].texture;
 		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0, 0, 1});
+
+		//Load up entire atlas to draw
 
 		// wgpu::SamplerDescriptor spriteSamplerDesc;
 		// spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -189,7 +193,7 @@ int main()
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
-		Terrain terrain(10, 10, 50, resources);
+		Gfx::Terrain terrain(10, 10, 50, resources);
 
 		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Transform Buffer", device};
@@ -202,7 +206,7 @@ int main()
 		quadPipeline.BindData(transformBuffer, animTex, camBuffer, animationBuffer, device);
 
 		// Create depth texture and depth texture view
-		Gfx::Texture depthTexture(wgpu::TextureDimension::_2D, {surfaceConfig.width, surfaceConfig.height, 1},
+		Gfx::GpuTexture depthTexture(wgpu::TextureDimension::_2D, {surfaceConfig.width, surfaceConfig.height, 1},
 								  wgpu::TextureUsage::RenderAttachment, 1, 3 /*24 bit depth*/, depthTextureFormat, device, "depth");
 
 		wgpu::TextureViewDescriptor depthTextureViewDesc;

@@ -9,7 +9,7 @@ namespace Utils
 {
 	std::optional<Object> LoadGeometry(std::filesystem::path const& path);
 	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path);
-	std::optional<std::pair<Animation,TextureResource>> LoadAnimation(std::filesystem::path const& folderPath);
+	std::optional<Animation> LoadAnimation(std::filesystem::path const& folderPath);
 
 	struct StartLocation
 	{

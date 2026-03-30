@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <optional>
 #include <vector>
-#include "ext/stb_rect_pack.h"
+#include <stb_rect_pack.h>
 
 namespace Gfx
 {

@@ -2,7 +2,7 @@
 #include <vector>
 
 #define STB_RECT_PACK_IMPLEMENTATION
-#include "ext/stb_rect_pack.h"
+#include <stb_rect_pack.h>
 
 namespace Gfx
 {

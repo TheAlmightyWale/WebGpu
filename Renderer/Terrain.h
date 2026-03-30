@@ -4,6 +4,9 @@
 #include "QuadDefs.h"
 #include "Core/ResourceDefs.h"
 
+namespace Gfx
+{
+
 class ResourceManager;
 
 //Handles generating a grid of tiles and stores their locations
@@ -30,3 +33,5 @@ private:
 	float _secs = 0.f;
 
 };
+
+}
