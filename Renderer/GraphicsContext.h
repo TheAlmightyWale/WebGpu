@@ -1,6 +1,10 @@
 #pragma once
 #include "Core/webgpu.h"
 #include "Renderer.h"
+#include <memory>
+
+namespace Gfx
+{
 
 // Encapsulates WebGPU instance, adapter, device, queue, and surface initialization.
 // Handles all GPU resource setup and provides access to the core WebGPU objects.
@@ -51,4 +55,8 @@ private:
     wgpu::SupportedLimits _adapterLimits;
     wgpu::SupportedLimits _deviceLimits;
     wgpu::RequiredLimits _requiredLimits;
+
+    std::unique_ptr<wgpu::ErrorCallback> _errorCb = nullptr;
 };
+
+}

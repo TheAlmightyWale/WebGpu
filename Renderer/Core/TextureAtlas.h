@@ -12,8 +12,10 @@ namespace Gfx
     public:
         TextureAtlas(uint32_t width, uint32_t height, std::string const& label);
 
-        bool AddToAtlas(AnimationSet& animationSet);
+        bool AddToAtlas(AnimationSet& animationSet, std::vector<TextureResource> const& textures);
         void CompletePacking();
+
+        TextureResource const& GetTexture(){ return _atlas;}
 
         bool IsPackingCompleted(){ return _packer == nullptr;}
         uint8_t Id(){return _id;}

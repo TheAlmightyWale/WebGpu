@@ -10,11 +10,10 @@
 namespace Gfx
 {
 
-uint8_t const k_maxAtlas = 5;
-
 //Loads and holds memory of all resources in the file paths given
 class ResourceManager {
 public:
+
 	using AnimationMapKey = std::string;
 	using AnimationMap = std::unordered_map<AnimationMapKey, AnimationSet>;
 	using AtlasArray = std::array<TextureAtlas, k_maxAtlas>;
@@ -30,6 +29,11 @@ public:
 	AnimationSet const& GetAnimation(AnimationMapKey id) const noexcept;
 
 	AnimationMap const& GetAllAnimations() const noexcept;
+
+	TextureResource const& GetAtlas(uint32_t atlasId){ 
+		assert(atlasId < k_maxAtlas);
+		return m_atlas[atlasId].GetTexture(); 
+	}
 
 private:
 	AnimationMap m_anims;

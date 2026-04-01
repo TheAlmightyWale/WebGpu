@@ -9,7 +9,7 @@
 namespace
 {
 
-	std::optional<Object> LoadGeometryObj_(std::filesystem::path const& path)
+	std::optional<Gfx::Object> LoadGeometryObj_(std::filesystem::path const& path)
 	{
 		tinyobj::ObjReader reader;
 		if (!reader.ParseFromFile(path.string()))
@@ -25,11 +25,11 @@ namespace
 		auto const& attrib = reader.GetAttrib();
 		auto const& shapes = reader.GetShapes();
 
-		Object result;
+		Gfx::Object result;
 		// Loop over shapes
 		for (size_t shapeIndex = 0; shapeIndex < shapes.size(); shapeIndex++)
 		{
-			Shape shape;
+			Gfx::Shape shape;
 			size_t indexOffset = 0;
 			// Loop over faces
 			for (size_t faceIndex = 0; faceIndex < shapes[shapeIndex].mesh.num_face_vertices.size(); faceIndex++)
@@ -68,6 +68,9 @@ namespace
 	}
 
 } // Anonymous namespace
+
+namespace Gfx
+{
 
 namespace Utils
 {
@@ -165,7 +168,7 @@ namespace Utils
 		}
 	}
 
-	std::optional<Animation> LoadAnimation(std::filesystem::path const& folderPath)
+	std::optional<std::pair<Animation, TextureResource>> LoadAnimation(std::filesystem::path const& folderPath)
 	{
 		std::vector<TextureResource> textures;
 
@@ -214,7 +217,7 @@ namespace Utils
 		animation.frameRes.height = (uint16_t)textures[0].height;
 		animation.name = animationName;
 
-		animation.texture = TextureResource{
+		TextureResource textureResource{
 			textures[0].width * (uint32_t)textures.size(),
 			textures[0].height,
 			textures[0].channelDepthBytes,
@@ -222,7 +225,7 @@ namespace Utils
 			{} /*data*/,
 			animationName};
 
-		animation.texture.data.resize(animation.texture.SizeBytes());
+		textureResource.data.resize(textureResource.SizeBytes());
 
 		// Copy frames into strip
 		size_t imageColumnOffset = 0;
@@ -233,7 +236,7 @@ namespace Utils
 			uint32_t imageRowBytes = frame.width * frame.channelDepthBytes * frame.numChannels;
 
 			CopyIntoRect(
-				animation.texture.data.data(),
+				textureResource.data.data(),
 				static_cast<uint32_t>(totalRowBytes),
 				static_cast<uint32_t>(imageColumnOffset),
 				frame.data.data(),
@@ -245,7 +248,7 @@ namespace Utils
 
 		std::cout << "Loaded Animation at: " << folderPath << "\n";
 
-		return {animation};
+		return {{animation, textureResource}};
 	}
 
 	//Rectangle packs textures. Right now we just stack textures on top of each other
@@ -308,4 +311,5 @@ namespace Utils
 
 		return result;
 	}
+}
 }

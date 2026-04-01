@@ -5,11 +5,14 @@
 #include "ResourceDefs.h"
 #include "MathDefs.h"
 
+namespace Gfx
+{
+
 namespace Utils
 {
 	std::optional<Object> LoadGeometry(std::filesystem::path const& path);
 	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path);
-	std::optional<Animation> LoadAnimation(std::filesystem::path const& folderPath);
+	std::optional<std::pair<Animation, TextureResource>> LoadAnimation(std::filesystem::path const& folderPath);
 
 	struct StartLocation
 	{
@@ -32,4 +35,6 @@ namespace Utils
 		uint32_t sourceRowSize,
 		Rect sourceLocation,
 		uint32_t strideBytes);
+}
+
 }

@@ -22,7 +22,7 @@ struct AnimUniform
 	Vec2f startCoord = { 0.f, 0.f };
 	Vec2f frameDimensions{ 0.f, 0.f };
 	uint32_t currentFrameIndex = 0;
-	uint32_t animId = std::numeric_limits<uint32_t>::max();
+	uint32_t atlasId = std::numeric_limits<uint32_t>::max();
 	float _padding[2] = {0.f,0.f};
 };
 

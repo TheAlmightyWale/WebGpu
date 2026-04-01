@@ -31,10 +31,10 @@ namespace Detail
 	{
 		return {
 			TextureAtlas(atlasWidth, atlasHeight, "Atlas_0"),
-			TextureAtlas(atlasWidth, atlasHeight, "Atlas_1"),
-			TextureAtlas(atlasWidth, atlasHeight, "Atlas_2"),
-			TextureAtlas(atlasWidth, atlasHeight, "Atlas_3"),
-			TextureAtlas(atlasWidth, atlasHeight, "Atlas_4")
+			TextureAtlas(atlasWidth, atlasHeight, "Atlas_1")
+			//TextureAtlas(atlasWidth, atlasHeight, "Atlas_2"),
+			//TextureAtlas(atlasWidth, atlasHeight, "Atlas_3"),
+			//TextureAtlas(atlasWidth, atlasHeight, "Atlas_4")
 		};
 	}
 
@@ -83,6 +83,8 @@ ResourceManager::AnimationMapKey ResourceManager::LoadAnimationSet(std::filesyst
 	assert(ad.fps < std::numeric_limits<uint8_t>::max());
 	animationSet.fps = (uint8_t)ad.fps;
 
+	std::vector<TextureResource> textures;
+
 	//Go through described animations and load them
 	for(auto const& animationDir : ad.animationDirectories)
 	{
@@ -103,13 +105,14 @@ ResourceManager::AnimationMapKey ResourceManager::LoadAnimationSet(std::filesyst
 		}
 
 		//add to animationSet
-		animationSet.animations.push_back(*oAnim);
+		animationSet.animations.push_back((*oAnim).first);
+		textures.push_back((*oAnim).second);
 	}
 
 	
 	for(auto& atlas : m_atlas){
 		//attempt to pack into atlas
-		bool res = atlas.AddToAtlas(animationSet);
+		bool res = atlas.AddToAtlas(animationSet, textures);
 		//if this fails try the next one, otherwise done
 		if(res) break;
 	}

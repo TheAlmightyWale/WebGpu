@@ -5,6 +5,10 @@
 #include "MeshDefs.h"
 #include "webgpu.h"
 
+namespace Gfx
+{
+
+constexpr uint8_t k_maxAtlas = 2;
 
 struct Shape
 {
@@ -42,7 +46,8 @@ struct Animation
 	uint32_t length;
 	Resolution frameRes;
 	std::string name;
-	TextureResource texture;
+
+	wgpu::Extent3D Extents() const noexcept { return {frameRes.width, frameRes.height, 1}; }
 };
 
 uint8_t const k_invalidAtlasId = std::numeric_limits<uint8_t>::max();
@@ -62,3 +67,5 @@ struct AnimationDescriptor
 	std::vector<std::string> animationDirectories;
 	uint32_t fps;
 };
+
+}

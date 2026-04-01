@@ -27,6 +27,7 @@ public:
 
 private:
 	std::vector<QuadTransform> _cells;
+	std::vector<uint32_t> _cellAnimIds;
 	std::vector<AnimUniform> _cellAnim;
 	std::vector<Animation> _animations;
 

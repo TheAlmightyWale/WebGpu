@@ -21,7 +21,7 @@ namespace Gfx
         _atlas.height = height;
 		_atlas.width = width;
 		_atlas.channelDepthBytes = 1; // single byte channel assumed
-		_atlas.numChannels = (uint8_t)3; //channel depth of 3 assumed
+		_atlas.numChannels = (uint8_t)4; //channel depth of 4 assumed. RGBA8
 		_atlas.data.resize(_atlas.SizeBytes());
 		_atlas.label = label + "_Resource";
 
@@ -29,36 +29,39 @@ namespace Gfx
 
     //Packs animationSet into atlas and updates animation info
     //Returns false if pack was unsuccessful
-    bool TextureAtlas::AddToAtlas(AnimationSet& animationSet)
+    bool TextureAtlas::AddToAtlas(AnimationSet& animationSet, std::vector<TextureResource> const& textures)
     {
         assert(!IsPackingCompleted());
 
         //go through each animation
+        uint32_t index = 0;
         for(auto& anim : animationSet.animations)
         {
             //pack into atlas
-            auto oPackRes = _packer->Pack(anim.texture.width, anim.frameRes.height);
+            auto oPackRes = _packer->Pack(textures[index].width, anim.frameRes.height);
 
             if(!oPackRes){
                 return false;
             }
 
             RectPackResult res = *oPackRes;
-            Rect sourcePos {Vec2u{0,0},Vec2u{anim.texture.width, anim.frameRes.height}};
+            Rect sourcePos {Vec2u{0,0},Vec2u{textures[index].width, anim.frameRes.height}};
             //copy animation to texture
             Utils::Blit(
                 _atlas.data.data(),
                 Vec2u{res.x, res.y},
                 _atlas.width,
-                anim.texture.data.data(),
-                anim.texture.width,
+                textures[index].data.data(),
+                textures[index].width,
                 sourcePos,
-                _atlas.numChannels + _atlas.channelDepthBytes
+                _atlas.numChannels * _atlas.channelDepthBytes
             );
 
             //update animation location
             anim.startX = res.x;
             anim.startY = res.y;
+
+            index += 1;
         }
 
         animationSet.atlasId = _id;

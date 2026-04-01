@@ -7,12 +7,16 @@
 
 #include "Quad.h"
 #include "QuadDefs.h"
+#include "Core/ResourceDefs.h"
 
 namespace
 {
     constexpr uint32_t k_kbBytes = 1024;
     constexpr uint32_t k_mbBytes = 1024 * 1024;
 }
+
+namespace Gfx
+{
 
 GraphicsContext::GraphicsContext(Window &window)
     : _instance(nullptr), _surface(nullptr), _adapter(nullptr), _device(nullptr), _queue(nullptr)
@@ -105,7 +109,7 @@ void GraphicsContext::ConfigureDeviceLimits()
     _requiredLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
     _requiredLimits.limits.maxTextureDimension1D = 16 * k_kbBytes;
     _requiredLimits.limits.maxTextureDimension2D = 16 * k_kbBytes;
-    _requiredLimits.limits.maxTextureArrayLayers = 2;
+    _requiredLimits.limits.maxTextureArrayLayers = k_maxAtlas;
     _requiredLimits.limits.maxSampledTexturesPerShaderStage = 1;
     _requiredLimits.limits.maxSamplersPerShaderStage = 1;
 
@@ -146,11 +150,13 @@ void GraphicsContext::SetupErrorHandling()
         std::cout << "Uncaptured Device error: type-" << type;
         if (message)
             std::cout << " (" << message << ")";
-        std::cout << "\n";
+        std::cout << std::endl;//use endl to flush buffer to output
 
         assert(false);
     };
 
     // Note: The callback handle is stored internally by the device
-    _device.setUncapturedErrorCallback(onDeviceError);
+   _errorCb = _device.setUncapturedErrorCallback(onDeviceError);
+}
+
 }

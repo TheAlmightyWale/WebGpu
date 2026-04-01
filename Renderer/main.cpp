@@ -49,7 +49,7 @@ int main()
 	// We want to destruct everything in here before calling glfwTerminate
 	{
 		Window window;
-		GraphicsContext gfx(window);
+		Gfx::GraphicsContext gfx(window);
 		wgpu::Device device = gfx.GetDevice();
 		wgpu::Instance instance = gfx.GetInstance();
 		wgpu::Queue queue = gfx.GetQueue();
@@ -157,26 +157,27 @@ int main()
 		uint32_t const k_atlasHeight = gfx.GetDeviceLimits().limits.maxTextureDimension2D;
 		Gfx::ResourceManager resources(k_atlasWidth, k_atlasHeight);
 		resources.LoadAllAnimations(assetsBasePath);
-		auto const& animSet = resources.GetAnimation("Cell1");
-		auto const& anim = animSet.animations[0].texture;
-		// Upload anim strip
-		Gfx::GpuTexture animTex{
+
+		//Upload all texture atlases
+		//first create main resource that we upload everything to
+		auto const& firstAtlas = resources.GetAtlas(0);
+		Gfx::GpuTexture atlasTex{
 			wgpu::TextureDimension::_2D,
-			{anim.width, anim.height, 2},
+			{firstAtlas.width, firstAtlas.height, Gfx::k_maxAtlas},
 			wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst,
-			anim.numChannels,
-			anim.channelDepthBytes,
+			firstAtlas.numChannels,
+			firstAtlas.channelDepthBytes,
 			wgpu::TextureFormat::RGBA8Unorm,
 			device,
-			"animation"};
-		animTex.EnqueueCopy(anim.data.data(), anim.Extents(), queue);
+			"GpuAtlas"
+		};
 
-		// Load other animations and offset copy
-		auto const& animSet2 = resources.GetAnimation("Cell2");
-		TextureResource const &texture2 = animSet2.animations[0].texture;
-		animTex.EnqueueCopy(texture2.data.data(), texture2.Extents(), queue, {0, 0, 1});
 
-		//Load up entire atlas to draw
+		for(uint8_t i = 0; i < Gfx::k_maxAtlas; i++)
+		{
+			auto const& atlas = resources.GetAtlas(i);
+			atlasTex.EnqueueCopy(atlas.data.data(), atlas.Extents(), queue, {0,0,i});
+		}
 
 		// wgpu::SamplerDescriptor spriteSamplerDesc;
 		// spriteSamplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -203,7 +204,7 @@ int main()
 									"Animations", device};
 		animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
 
-		quadPipeline.BindData(transformBuffer, animTex, camBuffer, animationBuffer, device);
+		quadPipeline.BindData(transformBuffer, atlasTex, camBuffer, animationBuffer, device);
 
 		// Create depth texture and depth texture view
 		Gfx::GpuTexture depthTexture(wgpu::TextureDimension::_2D, {surfaceConfig.width, surfaceConfig.height, 1},

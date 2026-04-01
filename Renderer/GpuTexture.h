@@ -9,7 +9,7 @@ namespace Gfx
 			int usageFlags, uint8_t numChannels, uint8_t bytesPerChannel, wgpu::TextureFormat format, wgpu::Device device, std::string const& label);
 		~GpuTexture();
 
-		//static Texture CreateFromTextureResource(TextureResource res, int usageFlags, wgpu::Device device, std::string const& label);
+		//static GpuTexture CreateFromTextureResource(TextureResource const& res, int usageFlags, wgpu::Device device, std::string const& label);
 
 		void EnqueueCopy(void const* pData, wgpu::Extent3D writeSize, wgpu::Queue& queue, wgpu::Origin3D targetOffset = { 0, 0, 0 });
 

@@ -23,17 +23,18 @@ Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceMan
 			{x,y,0.0f}, 0.f /*pad*/,
 			{cellSize, cellSize}
 		};
-		_cells.emplace_back(cell);
+		_cells.push_back(cell);
 
 		uint32_t animId = cellId % 2;
 		Animation animation = _animations[animId];
 		
 		AnimUniform anim;
 		anim.currentFrameIndex = cellId % animation.length;
-		anim.animId = animId;
-		anim.startCoord = { 0,0 };
+		anim.atlasId = 0;
+		anim.startCoord = {animation.startX, animation.startY};
 		anim.frameDimensions = { animation.frameRes.width, animation.frameRes.height };
 		_cellAnim.emplace_back(anim);
+		_cellAnimIds.push_back(animId);
 	}
 }
 
@@ -43,11 +44,14 @@ void Terrain::Animate(float dT)
 
 	if (_secs > k_fps)
 	{
-		for (auto& anim : _cellAnim)
+		for(uint32_t i = 0; i < _cellAnim.size(); i++)
 		{
-			uint32_t animLength = _animations[anim.animId].length;
+			auto& anim = _cellAnim[i];
+			uint32_t animId = _cellAnimIds[i];
+			uint32_t animLength = _animations[animId].length;
 			anim.currentFrameIndex = (anim.currentFrameIndex + 1) % animLength;
 		}
+
 		_secs = 0.f;
 	}
 

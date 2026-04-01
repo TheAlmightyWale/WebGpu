@@ -66,9 +66,9 @@ namespace Gfx
 		}
 	}
 
-	/*static Texture CreateFromTextureResource(TextureResource res, int usageFlags, wgpu::Device device, std::string const& label)
+	/*static GpuTexture CreateFromTextureResource(TextureResource const& res, int usageFlags, wgpu::Device device, std::string const& label)
 	{
-		return Gfx::Texture{
+		return GpuTexture{
 				wgpu::TextureDimension::_1D,
 				{res.width, res.height, 1},
 				usageFlags,
