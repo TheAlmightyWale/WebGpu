@@ -29,7 +29,7 @@ struct Transform {
     _padding: vec2f,
 }
 
-const k_maxInstancesPerDraw = 100;
+const k_maxInstancesPerDraw = 102;
 
 @group(0) @binding(0) var<uniform> uTransforms: array<Transform, k_maxInstancesPerDraw>;
 @group(0) @binding(1) var textures: texture_2d_array<f32>;

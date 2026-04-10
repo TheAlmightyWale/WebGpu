@@ -199,6 +199,24 @@ int main()
 		std::array<QuadTransform, Gfx::k_maxAtlas> debugAtlas;
 		std::array<AnimUniform, Gfx::k_maxAtlas> debugAtlasAnims;
 
+		//Fill in debug atlas data
+		float k_debugAtlasSize = 500.f;
+		for(uint32_t i = 0; i < Gfx::k_maxAtlas; i++){
+			debugAtlas[i] = QuadTransform{
+				Vec3f(-10.f - k_debugAtlasSize, (i * -5.0f) - (i * k_debugAtlasSize), 0.0f),
+				0.0f, //pad
+				Vec2f(k_debugAtlasSize, k_debugAtlasSize)
+			};
+
+			//cover entierty of atlas
+			debugAtlasAnims[i] = AnimUniform{
+				Vec2f(0.f, 0.f),
+				Vec2f(1000.0f, 1000.0f/*k_atlasWidth, k_atlasHeight*/),
+				0,
+				i
+			};
+		}
+
 		uint32_t terrainTransformBufferSizeBytes = (uint32_t)terrain.Cells().size() * sizeof(QuadTransform);
 		uint32_t debugAtlasTransformBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(QuadTransform);
 		Gfx::Buffer transformBuffer{terrainTransformBufferSizeBytes + debugAtlasTransformBufferSizeBytes,
@@ -231,7 +249,7 @@ int main()
 		depthTextureViewDesc.format = depthTextureFormat;
 		wgpu::TextureView depthTextureView = depthTexture.Get().createView(depthTextureViewDesc);
 
-		// Temp buffer data
+		// Temp buffer data, everything used here is dummy data to show an example of copying data between buffers on GPU
 		uint32_t k_bufferSize = 16;
 		std::vector<uint8_t> numbers(k_bufferSize);
 		for (uint8_t i = 0; i < k_bufferSize; ++i)
@@ -334,6 +352,7 @@ int main()
 			// Update animations
 			terrain.Animate(deltaTime);
 			animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
+			animationBuffer.EnqueueCopy(debugAtlasAnims.data(), debugAtlasAnimationBufferSizeBytes, terrainAnimationBufferSizeBytes, queue);
 
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
@@ -366,8 +385,7 @@ int main()
 			quadPassEncoder.setBindGroup(0, quadPipeline.BindGroup(), 0, nullptr);
 			quadPassEncoder.setVertexBuffer(0, quadBuffer.Get(), 0, quadBuffer.Size());
 
-			//TODO add debug atlas quads to draw
-			quadPassEncoder.draw((uint32_t)quad.vertices.size(), (uint32_t)terrain.Cells().size() /*instance count*/, 0, 0);
+			quadPassEncoder.draw((uint32_t)quad.vertices.size(), (uint32_t)terrain.Cells().size() + Gfx::k_maxAtlas/*instance count*/, 0, 0);
 			quadPassEncoder.end();
 			quadPassEncoder.release();
 
