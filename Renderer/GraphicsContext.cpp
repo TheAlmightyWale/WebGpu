@@ -105,7 +105,7 @@ void GraphicsContext::ConfigureDeviceLimits()
     _requiredLimits.limits.maxBindGroups = 1;
     _requiredLimits.limits.maxBindingsPerBindGroup = 10;
     _requiredLimits.limits.maxUniformBuffersPerShaderStage = 3;
-    _requiredLimits.limits.maxUniformBufferBindingSize = 100 * sizeof(AnimUniform);
+    _requiredLimits.limits.maxUniformBufferBindingSize = 500 * sizeof(AnimUniform);
     _requiredLimits.limits.maxDynamicUniformBuffersPerPipelineLayout = 1;
     _requiredLimits.limits.maxTextureDimension1D = 16 * k_kbBytes;
     _requiredLimits.limits.maxTextureDimension2D = 16 * k_kbBytes;
@@ -155,7 +155,6 @@ void GraphicsContext::SetupErrorHandling()
         assert(false);
     };
 
-    // Note: The callback handle is stored internally by the device
    _errorCb = _device.setUncapturedErrorCallback(onDeviceError);
 }
 

@@ -196,13 +196,24 @@ int main()
 
 		Gfx::Terrain terrain(10, 10, 50, resources);
 
-		Gfx::Buffer transformBuffer{(uint32_t)(terrain.Cells().size() * sizeof(QuadTransform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
-									"Transform Buffer", device};
-		transformBuffer.EnqueueCopy(terrain.Cells().data(), 0, queue);
+		std::array<QuadTransform, Gfx::k_maxAtlas> debugAtlas;
+		std::array<AnimUniform, Gfx::k_maxAtlas> debugAtlasAnims;
 
-		Gfx::Buffer animationBuffer{(uint32_t)(terrain.CellAnimations().size() * sizeof(AnimUniform)), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+		uint32_t terrainTransformBufferSizeBytes = (uint32_t)terrain.Cells().size() * sizeof(QuadTransform);
+		uint32_t debugAtlasTransformBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(QuadTransform);
+		Gfx::Buffer transformBuffer{terrainTransformBufferSizeBytes + debugAtlasTransformBufferSizeBytes,
+									wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+									"Transform Buffer", device};
+		transformBuffer.EnqueueCopy(terrain.Cells().data(), terrainTransformBufferSizeBytes, 0, queue);
+		transformBuffer.EnqueueCopy(debugAtlas.data(), debugAtlasTransformBufferSizeBytes, terrainTransformBufferSizeBytes,
+									queue);
+
+		uint32_t terrainAnimationBufferSizeBytes = (uint32_t)terrain.CellAnimations().size() * sizeof(AnimUniform);
+		uint32_t debugAtlasAnimationBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(AnimUniform); 
+		Gfx::Buffer animationBuffer{terrainAnimationBufferSizeBytes + debugAtlasAnimationBufferSizeBytes, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Animations", device};
 		animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
+		animationBuffer.EnqueueCopy(debugAtlasAnims.data(), debugAtlasAnimationBufferSizeBytes, terrainAnimationBufferSizeBytes, queue);
 
 		quadPipeline.BindData(transformBuffer, atlasTex, camBuffer, animationBuffer, device);
 
@@ -354,6 +365,8 @@ int main()
 			quadPassEncoder.setPipeline(quadPipeline.Get());
 			quadPassEncoder.setBindGroup(0, quadPipeline.BindGroup(), 0, nullptr);
 			quadPassEncoder.setVertexBuffer(0, quadBuffer.Get(), 0, quadBuffer.Size());
+
+			//TODO add debug atlas quads to draw
 			quadPassEncoder.draw((uint32_t)quad.vertices.size(), (uint32_t)terrain.Cells().size() /*instance count*/, 0, 0);
 			quadPassEncoder.end();
 			quadPassEncoder.release();
