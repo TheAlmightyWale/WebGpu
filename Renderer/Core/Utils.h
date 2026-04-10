@@ -35,6 +35,9 @@ namespace Utils
 		uint32_t sourceRowSize,
 		Rect sourceLocation,
 		uint32_t strideBytes);
+
+	//Fills a buffer with a repeating pattern defined by pSrc. Will truncate if sizes do not fully fit
+	void FastFill(std::byte* pDestination, uint32_t destinationSizeBytes, std::byte const* pSrc, uint32_t sourceSizeBytes);
 }
 
 }

@@ -168,6 +168,22 @@ namespace Utils
 		}
 	}
 
+	void FastFill(std::byte* pDestination, uint32_t destinationSizeBytes, std::byte const* pSrc, uint32_t sourceSizeBytes)
+	{
+		uint32_t copiedAmount = 0;
+    	std::byte const* source = pSrc;
+      	uint32_t amount = sourceSizeBytes;
+
+      	while(copiedAmount < destinationSizeBytes)
+      	{
+        	uint32_t toCopy = std::min(amount, destinationSizeBytes - copiedAmount);
+          	std::memcpy((pDestination + copiedAmount), source, toCopy);
+          	copiedAmount += toCopy;
+          	source = pDestination;
+          	amount = copiedAmount; // doubles each time
+      	}
+	}
+
 	std::optional<std::pair<Animation, TextureResource>> LoadAnimation(std::filesystem::path const& folderPath)
 	{
 		std::vector<TextureResource> textures;

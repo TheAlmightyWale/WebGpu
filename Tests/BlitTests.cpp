@@ -24,7 +24,7 @@ TEST(Blit, copyWholeRect)
     std::byte* pSrc = reinterpret_cast<std::byte*>(small.data());
 
     //copy into 100x100 rect from 0,0 to 20,20
-    Utils::Blit(
+    Gfx::Utils::Blit(
         pDest,
         Vec2u{0,0},
         largeRowSize,
@@ -68,7 +68,7 @@ TEST(Blit, copyPartialRect)
 
     //copy into 100x100 rect from 0,0 to 10,10
     Rect copyRect{{0,0}, {10, 10}};
-    Utils::Blit(
+    Gfx::Utils::Blit(
         pDest,
         Vec2u{0,0},
         largeRowSize,
@@ -90,7 +90,7 @@ TEST(Blit, copyPartialRect)
     //copy int 100x100 rect from 10,10 to 20,20
     copyRect = Rect{{10,10}, {10, 10}};
     Vec2u offset{10,10};
-    Utils::Blit(
+    Gfx::Utils::Blit(
         pDest,
         offset,
         largeRowSize,
@@ -135,7 +135,7 @@ TEST(Blit, copyWholeRectOffset)
 
     //copy into 100x100 rect from 20,20 to 40,40
     Vec2u offset{20,20};
-    Utils::Blit(
+    Gfx::Utils::Blit(
         pDest,
         offset,
         largeRowSize,
@@ -162,7 +162,7 @@ TEST(Blit, copyWholeRectOffset)
 
     //copy into 100x100 rect from 61,63 to 81,83
     offset = Vec2u{61,63};
-    Utils::Blit(
+    Gfx::Utils::Blit(
         pDest,
         offset,
         largeRowSize,

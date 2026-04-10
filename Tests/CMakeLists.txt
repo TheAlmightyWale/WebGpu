@@ -25,6 +25,7 @@ include_directories(${CMAKE_SOURCE_DIR}/Renderer/Core)
 # Create test executable
 add_executable(RendererTests
   BlitTests.cpp
+  FastFillTests.cpp
 )
 
 # Link test executable with Google Test and the main project libraries

@@ -4,6 +4,9 @@
 
 namespace Gfx
 {
+    uint8_t const k_assumedChannels = 4;
+    uint8_t const k_debugColor[k_assumedChannels] = {36, 239, 20, 255}; 
+
     namespace Detail
     {
         uint8_t GetId(){
@@ -21,9 +24,12 @@ namespace Gfx
         _atlas.height = height;
 		_atlas.width = width;
 		_atlas.channelDepthBytes = 1; // single byte channel assumed
-		_atlas.numChannels = (uint8_t)4; //channel depth of 4 assumed. RGBA8
+		_atlas.numChannels = k_assumedChannels; //channel depth of 4 assumed. RGBA8
 		_atlas.data.resize(_atlas.SizeBytes());
 		_atlas.label = label + "_Resource";
+
+        Utils::FastFill(_atlas.data.data(), (uint32_t)_atlas.data.size(), 
+            reinterpret_cast<std::byte const*>(&k_debugColor[0]), sizeof(k_debugColor));
 
     }
 
