@@ -195,15 +195,11 @@ int main()
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
-		//TODO: next steps is modify Terrain and debug atlases to use global buffer for data storage
-		// then enqueue global buffers to GPU
-
 		Gfx::Terrain terrain(10, 10, 50, resources);
-
 		std::span<QuadTransform> debugAtlas = Gfx::GlobalBuffer<QuadTransform>::Get()
 				.RegisterData(Gfx::k_maxAtlas);
-		//std::array<QuadTransform, Gfx::k_maxAtlas> debugAtlas;
-		std::array<AnimUniform, Gfx::k_maxAtlas> debugAtlasAnims;
+		std::span<AnimUniform> debugAtlasAnims = Gfx::GlobalBuffer<AnimUniform>::Get()
+				.RegisterData(Gfx::k_maxAtlas);
 
 		//Fill in debug atlas data
 		float k_debugAtlasSize = 500.f;
@@ -223,21 +219,17 @@ int main()
 			};
 		}
 
-		uint32_t terrainTransformBufferSizeBytes = (uint32_t)terrain.Cells().size() * sizeof(QuadTransform);
-		uint32_t debugAtlasTransformBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(QuadTransform);
-		Gfx::GpuBuffer transformBuffer{terrainTransformBufferSizeBytes + debugAtlasTransformBufferSizeBytes,
+		auto& g_transformBuffer = Gfx::GlobalBuffer<QuadTransform>::Get();
+		Gfx::GpuBuffer transformBuffer{g_transformBuffer.SizeBytes(),
 									wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Transform Buffer", device};
-		transformBuffer.EnqueueCopy(terrain.Cells().data(), terrainTransformBufferSizeBytes, 0, queue);
-		transformBuffer.EnqueueCopy(debugAtlas.data(), debugAtlasTransformBufferSizeBytes, terrainTransformBufferSizeBytes,
-									queue);
-
-		uint32_t terrainAnimationBufferSizeBytes = (uint32_t)terrain.CellAnimations().size() * sizeof(AnimUniform);
-		uint32_t debugAtlasAnimationBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(AnimUniform); 
-		Gfx::GpuBuffer animationBuffer{terrainAnimationBufferSizeBytes + debugAtlasAnimationBufferSizeBytes, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+		g_transformBuffer.CopyTo(transformBuffer, queue);
+ 
+		auto& g_animationBuffer = Gfx::GlobalBuffer<AnimUniform>::Get();
+		Gfx::GpuBuffer animationBuffer{g_animationBuffer.SizeBytes(),
+									 wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Animations", device};
-		animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
-		animationBuffer.EnqueueCopy(debugAtlasAnims.data(), debugAtlasAnimationBufferSizeBytes, terrainAnimationBufferSizeBytes, queue);
+		g_animationBuffer.CopyTo(animationBuffer, queue);
 
 		quadPipeline.BindData(transformBuffer, atlasTex, camBuffer, animationBuffer, device);
 
@@ -357,9 +349,8 @@ int main()
 
 			// Update animations
 			terrain.Animate(deltaTime);
-			animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
-			animationBuffer.EnqueueCopy(debugAtlasAnims.data(), debugAtlasAnimationBufferSizeBytes, terrainAnimationBufferSizeBytes, queue);
-
+			g_animationBuffer.CopyTo(animationBuffer, queue);
+			
 			wgpu::RenderPassColorAttachment rpColorAttachment{};
 			rpColorAttachment.view = toDisplay;
 			rpColorAttachment.resolveTarget = nullptr;

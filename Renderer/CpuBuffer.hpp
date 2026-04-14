@@ -33,15 +33,22 @@ public:
     }
 
 
-    void CopyTo(GpuBuffer& gpuBuffer) const{
-        //Check gpuBuffer can hold data
-        
+    void CopyTo(GpuBuffer& gpuBuffer, wgpu::Queue queue) const{
+        assert(gpuBuffer.Size() >= SizeBytes());
 
-        //queue up copy
+        gpuBuffer.EnqueueCopy(_buffer.data(), SizeBytes(), 0, queue);
     }
 
     void Clear() {
         _buffer.clear();
+    }
+
+    inline uint32_t Size() const{
+        return (uint32_t)_buffer.size();
+    }
+
+    inline uint32_t SizeBytes() const{
+        return (uint32_t)_buffer.size() * sizeof(T);
     }
 
 private:
