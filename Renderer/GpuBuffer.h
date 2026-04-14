@@ -5,11 +5,11 @@
 
 namespace Gfx
 {
-	class Buffer
+	class GpuBuffer
 	{
 	public:
-		Buffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device);
-		~Buffer();
+		GpuBuffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device);
+		~GpuBuffer();
 
 		void EnqueueCopy(void const* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue);
 		void EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue);

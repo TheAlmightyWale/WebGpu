@@ -1,5 +1,6 @@
 #include "Terrain.h"
 #include "Core/ResourceManager.h"
+#include "GlobalBuffer.hpp"
 
 namespace Gfx
 {
@@ -7,7 +8,12 @@ namespace Gfx
 Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceManager const& resourceManager)
 {
 	uint32_t totalCells = width * height;
-	_cells.reserve(totalCells);
+
+	_cells = GlobalBuffer<QuadTransform>::Get()
+		.RegisterData(totalCells);
+
+	_cellAnim = GlobalBuffer<AnimUniform>::Get()
+		.RegisterData(totalCells);
 
 	auto cell1Anim = resourceManager.GetAnimation("Cell1");
 	auto cell2Anim = resourceManager.GetAnimation("Cell2");
@@ -23,7 +29,7 @@ Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceMan
 			{x,y,0.0f}, 0.f /*pad*/,
 			{cellSize, cellSize}
 		};
-		_cells.push_back(cell);
+		_cells[cellId] = cell;
 
 		uint32_t animId = cellId % 2;
 		Animation animation = _animations[animId];
@@ -33,7 +39,7 @@ Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceMan
 		anim.atlasId = 0;
 		anim.startCoord = {animation.startX, animation.startY};
 		anim.frameDimensions = { animation.frameRes.width, animation.frameRes.height };
-		_cellAnim.emplace_back(anim);
+		_cellAnim[cellId] = anim;
 		_cellAnimIds.push_back(animId);
 	}
 }

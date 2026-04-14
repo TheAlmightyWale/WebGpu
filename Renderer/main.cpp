@@ -7,7 +7,7 @@
 #include <array>
 #include "Core/MathDefs.h"
 #include "Core/MeshDefs.h"
-#include "Buffer.h"
+#include "GpuBuffer.h"
 #include "GpuTexture.h"
 #include "Quad.h"
 #include "QuadRenderPipeline.h"
@@ -17,6 +17,7 @@
 #include "Core/ResourceManager.h"
 #include "Renderer.h"
 #include "GraphicsContext.h"
+#include "GlobalBuffer.hpp"
 #include "ShaderLoader.h"
 
 struct Uniforms
@@ -87,7 +88,7 @@ int main()
 			.color{0.0f, 1.0f, 0.4f, 1.0f},
 			.time = 1.0f};
 
-		Gfx::Buffer uniformBuffer(
+		Gfx::GpuBuffer uniformBuffer(
 			uniformStride + sizeof(Uniforms),
 			wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 			"Uniform Buffer",
@@ -116,7 +117,7 @@ int main()
 		quadCam.position = Vec2f{0.5f, 0.5f};
 		quadCam.extents = Vec2f{(float)k_screenWidth, (float)k_screenHeight};
 
-		Gfx::Buffer camBuffer{sizeof(CamUniforms), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Camera Uniforms", device};
+		Gfx::GpuBuffer camBuffer{sizeof(CamUniforms), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Camera Uniforms", device};
 		camBuffer.EnqueueCopy(&quadCam, 0, queue);
 
 		std::cout << "Configured Surface\n";
@@ -194,9 +195,14 @@ int main()
 
 		Gfx::QuadRenderPipeline quadPipeline(device, quadShaderModule, colorTarget, depthStencilState);
 
+		//TODO: next steps is modify Terrain and debug atlases to use global buffer for data storage
+		// then enqueue global buffers to GPU
+
 		Gfx::Terrain terrain(10, 10, 50, resources);
 
-		std::array<QuadTransform, Gfx::k_maxAtlas> debugAtlas;
+		std::span<QuadTransform> debugAtlas = Gfx::GlobalBuffer<QuadTransform>::Get()
+				.RegisterData(Gfx::k_maxAtlas);
+		//std::array<QuadTransform, Gfx::k_maxAtlas> debugAtlas;
 		std::array<AnimUniform, Gfx::k_maxAtlas> debugAtlasAnims;
 
 		//Fill in debug atlas data
@@ -211,7 +217,7 @@ int main()
 			//cover entierty of atlas
 			debugAtlasAnims[i] = AnimUniform{
 				Vec2f(0.f, 0.f),
-				Vec2f(1000.0f, 1000.0f/*k_atlasWidth, k_atlasHeight*/),
+				Vec2f(k_atlasWidth, k_atlasHeight),
 				0,
 				i
 			};
@@ -219,7 +225,7 @@ int main()
 
 		uint32_t terrainTransformBufferSizeBytes = (uint32_t)terrain.Cells().size() * sizeof(QuadTransform);
 		uint32_t debugAtlasTransformBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(QuadTransform);
-		Gfx::Buffer transformBuffer{terrainTransformBufferSizeBytes + debugAtlasTransformBufferSizeBytes,
+		Gfx::GpuBuffer transformBuffer{terrainTransformBufferSizeBytes + debugAtlasTransformBufferSizeBytes,
 									wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Transform Buffer", device};
 		transformBuffer.EnqueueCopy(terrain.Cells().data(), terrainTransformBufferSizeBytes, 0, queue);
@@ -228,7 +234,7 @@ int main()
 
 		uint32_t terrainAnimationBufferSizeBytes = (uint32_t)terrain.CellAnimations().size() * sizeof(AnimUniform);
 		uint32_t debugAtlasAnimationBufferSizeBytes = (uint32_t)debugAtlas.size() * sizeof(AnimUniform); 
-		Gfx::Buffer animationBuffer{terrainAnimationBufferSizeBytes + debugAtlasAnimationBufferSizeBytes, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
+		Gfx::GpuBuffer animationBuffer{terrainAnimationBufferSizeBytes + debugAtlasAnimationBufferSizeBytes, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform,
 									"Animations", device};
 		animationBuffer.EnqueueCopy(terrain.CellAnimations().data(), 0, queue);
 		animationBuffer.EnqueueCopy(debugAtlasAnims.data(), debugAtlasAnimationBufferSizeBytes, terrainAnimationBufferSizeBytes, queue);
@@ -256,8 +262,8 @@ int main()
 			numbers[i] = i;
 
 		// Create Buffer
-		Gfx::Buffer buffer1{k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc, "buffer1", device};
-		Gfx::Buffer buffer2{k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead, "buffer2", device};
+		Gfx::GpuBuffer buffer1{k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::CopySrc, "buffer1", device};
+		Gfx::GpuBuffer buffer2{k_bufferSize, wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::MapRead, "buffer2", device};
 
 		// Add instruction to copy to buffer
 		buffer1.EnqueueCopy(numbers.data(), 0, queue);
@@ -299,7 +305,7 @@ int main()
 
 		// Quad upload
 		Gfx::Quad quad;
-		Gfx::Buffer quadBuffer{
+		Gfx::GpuBuffer quadBuffer{
 			sizeof(Gfx::Quad), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex, "Quad Vertices", device};
 		quadBuffer.EnqueueCopy(quad.vertices.data(), 0, queue);
 

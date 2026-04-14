@@ -5,7 +5,7 @@ option(DEV_MODE "Set up development helper settings" ON)
 add_subdirectory("Core")
 
 # Add source to this project's executable.
-add_executable (Renderer "main.cpp" "Buffer.h" "Buffer.cpp" "GpuTexture.h" "GpuTexture.cpp" "Quad.h" 
+add_executable (Renderer "main.cpp" "GpuBuffer.h" "GpuBuffer.cpp" "GpuTexture.h" "GpuTexture.cpp" "Quad.h" 
                 "QuadRenderPipeline.h" "QuadRenderPipeline.cpp" "Terrain.h" "QuadDefs.h" "Terrain.cpp" 
                  "Renderer.h" "GraphicsContext.h" "GraphicsContext.cpp" "ShaderLoader.h" "ShaderLoader.cpp")
 

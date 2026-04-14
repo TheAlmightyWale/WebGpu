@@ -128,7 +128,7 @@ namespace Gfx
 		_pipeline.release();
 	}
 
-	void QuadRenderPipeline::BindData(Gfx::Buffer const& transformData, Gfx::GpuTexture const& texture, Gfx::Buffer const& cameraData, Gfx::Buffer const& animationData, wgpu::Device device)
+	void QuadRenderPipeline::BindData(Gfx::GpuBuffer const& transformData, Gfx::GpuTexture const& texture, Gfx::GpuBuffer const& cameraData, Gfx::GpuBuffer const& animationData, wgpu::Device device)
 	{
 		wgpu::BindGroupEntry& uniformBind = _bindEntries[0];
 		uniformBind.binding = 0;

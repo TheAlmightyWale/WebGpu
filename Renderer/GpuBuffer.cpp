@@ -1,19 +1,19 @@
-#include "Buffer.h"
+#include "GpuBuffer.h"
 
 namespace Gfx
 {
-	void Buffer::EnqueueCopy(void const* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue)
+	void GpuBuffer::EnqueueCopy(void const* pData, uint32_t size, uint32_t bufferOffset, wgpu::Queue& queue)
 	{
 		assert(size <= _size);
 		queue.writeBuffer(_handle, bufferOffset, pData, size);
 	}
 
-	void Buffer::EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue)
+	void GpuBuffer::EnqueueCopy(void const* pData, uint32_t bufferOffset, wgpu::Queue& queue)
 	{
 		EnqueueCopy(pData, _size, bufferOffset, queue);
 	}
 
-	Buffer::~Buffer()
+	GpuBuffer::~GpuBuffer()
 	{
 		if (_handle) {
 			_handle.destroy();
@@ -21,7 +21,7 @@ namespace Gfx
 		}
 	}
 
-	Buffer::Buffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device)
+	GpuBuffer::GpuBuffer(uint32_t size, int usageFlags, std::string const& label, wgpu::Device device)
 		: _handle(nullptr)
 		, _size(size)
 	{
