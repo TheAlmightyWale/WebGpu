@@ -12,7 +12,7 @@ FetchContent_MakeAvailable(glaze)
 
 add_library(Core "Utils.h" "Utils.cpp" "MathDefs.h" "MeshDefs.h" "ObjLoader.h" "ObjLoader.cpp" "TextureAtlas.h" 
                 "TextureAtlas.cpp" "ImageLoader.h" "ImageLoader.cpp" "Chrono.h" "ResourceManager.h" "ResourceDefs.h"
-                "ResourceManager.cpp" "Packing.h" "Packing.cpp" "webgpu.h" "webgpu.cpp")
+                "ResourceManager.cpp" "Packing.h" "Packing.cpp" "webgpu.h" "webgpu.cpp" "Window.h")
 
 target_include_directories(Core SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/ext")
 target_link_libraries(Core PRIVATE glfw webgpu glfw3webgpu glm glaze::glaze)

@@ -15,10 +15,13 @@
 #include "Terrain.h"
 #include "Core/Chrono.h"
 #include "Core/ResourceManager.h"
-#include "Renderer.h"
+#include "Core/Window.h"
 #include "GraphicsContext.h"
 #include "GlobalBuffer.hpp"
 #include "ShaderLoader.h"
+
+//TODO: next, break out more things from main so that we are not doing anything more than calling some initialization
+// registering data to draw, and then calling draw / animate
 
 struct Uniforms
 {
@@ -30,8 +33,6 @@ struct Uniforms
 	float _pad[3] = {0.f, 0.f, 0.f}; // struct must be 16byte aligned
 };
 static_assert(sizeof(Uniforms) % 16 == 0);
-
-// constexpr uint32_t k_mbBytes = 1024 * 1024;
 
 uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
@@ -49,7 +50,7 @@ int main()
 
 	// We want to destruct everything in here before calling glfwTerminate
 	{
-		Window window;
+		Gfx::Window window;
 		Gfx::GraphicsContext gfx(window);
 		wgpu::Device device = gfx.GetDevice();
 		wgpu::Instance instance = gfx.GetInstance();
@@ -77,7 +78,7 @@ int main()
 
 		float focalLength = 2.0f;
 		float fov = 2.0f * glm::atan(1.0f, focalLength);
-		float ratio = (float)k_screenWidth / (float)k_screenHeight;
+		float ratio = (float)Gfx::k_screenWidth / (float)Gfx::k_screenHeight;
 		float nearPlane = 0.01f;
 		float farPlane = 100.0f;
 
@@ -101,8 +102,8 @@ int main()
 		// Swapchain is configured through surface
 		wgpu::SurfaceConfiguration surfaceConfig = wgpu::Default;
 		surfaceConfig.nextInChain = nullptr;
-		surfaceConfig.width = k_screenWidth;
-		surfaceConfig.height = k_screenHeight;
+		surfaceConfig.width = Gfx::k_screenWidth;
+		surfaceConfig.height = Gfx::k_screenHeight;
 		surfaceConfig.format = swapChainFormat;
 		surfaceConfig.usage = wgpu::TextureUsage::RenderAttachment;
 		surfaceConfig.presentMode = wgpu::PresentMode::Fifo;
@@ -115,7 +116,7 @@ int main()
 		// Quad cam uniforms, to be updated when swap chain is resized
 		CamUniforms quadCam;
 		quadCam.position = Vec2f{0.5f, 0.5f};
-		quadCam.extents = Vec2f{(float)k_screenWidth, (float)k_screenHeight};
+		quadCam.extents = Vec2f{(float)Gfx::k_screenWidth, (float)Gfx::k_screenHeight};
 
 		Gfx::GpuBuffer camBuffer{sizeof(CamUniforms), wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform, "Camera Uniforms", device};
 		camBuffer.EnqueueCopy(&quadCam, 0, queue);
