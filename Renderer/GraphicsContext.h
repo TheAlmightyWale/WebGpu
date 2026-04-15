@@ -1,6 +1,6 @@
 #pragma once
 #include "Core/webgpu.h"
-#include "Renderer.h"
+#include "Core/Window.h"
 #include <memory>
 
 namespace Gfx
@@ -13,7 +13,7 @@ class GraphicsContext
 public:
     // Initializes WebGPU instance, adapter, device, queue, and surface for the given window.
     // Throws std::runtime_error if initialization fails.
-    explicit GraphicsContext(Window &window);
+    explicit GraphicsContext(Window& window);
 
     // Releases all WebGPU resources in proper order
     ~GraphicsContext();

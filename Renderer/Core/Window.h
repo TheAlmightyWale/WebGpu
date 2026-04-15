@@ -1,6 +1,8 @@
 #pragma once
 #include <GLFW/glfw3.h>
 
+#include <utility>
+
 namespace Gfx
 {
 
@@ -12,6 +14,12 @@ class Window
 public:
 	Window() : pWindow(nullptr)
 	{
+		if (!glfwInit())
+	    {
+		    std::cerr << "Could not initialize GLFW \n";
+		    return;
+	    }
+
 		glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 		pWindow = glfwCreateWindow(k_screenWidth, k_screenHeight, "WebGpu", nullptr, nullptr);
@@ -20,9 +28,18 @@ public:
 	Window(Window const&) = delete;
 	Window& operator=(Window const&) = delete;
 
+    Window(Window&& other){
+        std::swap(pWindow, other.pWindow);
+    }
+
+    Window& operator=(Window&& other){
+        std::swap(pWindow, other.pWindow);
+    }
+
 	~Window()
 	{
 		if (pWindow) glfwDestroyWindow(pWindow);
+		glfwTerminate();
 	}
 
 	inline bool ShouldClose() { return glfwWindowShouldClose(pWindow); }

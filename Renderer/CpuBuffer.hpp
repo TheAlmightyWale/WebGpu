@@ -32,7 +32,6 @@ public:
         return std::span(_buffer.begin() + currentSize, _buffer.end());
     }
 
-
     void CopyTo(GpuBuffer& gpuBuffer, wgpu::Queue queue) const{
         assert(gpuBuffer.Size() >= SizeBytes());
 

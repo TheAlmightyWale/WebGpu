@@ -1,6 +1,9 @@
 #pragma once
 #include "Core/MathDefs.h"
 
+namespace Gfx
+{
+
 struct QuadTransform
 {
 	Vec3f position;
@@ -9,13 +12,6 @@ struct QuadTransform
 	float _pad2[2] = {0.f,0.f}; //Each member must be 16 byte aligned, min 32 bytes
 };
 static_assert(sizeof(QuadTransform) % 16 == 0);
-
-struct CamUniforms
-{
-	Vec2f position;
-	Vec2f extents;
-};
-static_assert(sizeof(CamUniforms) % 16 == 0);
 
 struct AnimUniform
 {
@@ -27,3 +23,5 @@ struct AnimUniform
 };
 
 static_assert(sizeof(AnimUniform) % 16 == 0);
+
+}

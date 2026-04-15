@@ -18,7 +18,7 @@ namespace
 namespace Gfx
 {
 
-GraphicsContext::GraphicsContext(Window &window)
+GraphicsContext::GraphicsContext(Window& window)
     : _instance(nullptr), _surface(nullptr), _adapter(nullptr), _device(nullptr), _queue(nullptr)
 {
     InitializeInstance();

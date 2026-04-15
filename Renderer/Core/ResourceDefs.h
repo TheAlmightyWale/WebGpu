@@ -2,23 +2,12 @@
 #include <vector>
 #include <limits>
 #include <cstdint>
-#include "MeshDefs.h"
 #include "webgpu.h"
 
 namespace Gfx
 {
 
 constexpr uint8_t k_maxAtlas = 2;
-
-struct Shape
-{
-	std::vector<InterleavedVertex> points;
-};
-
-struct Object
-{
-	std::vector<Shape> shapes;
-};
 
 struct TextureResource
 {

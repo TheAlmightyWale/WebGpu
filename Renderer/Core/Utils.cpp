@@ -1,92 +1,15 @@
 #include "Utils.h"
 #include <filesystem>
-#include "ObjLoader.h"
 #include "ImageLoader.h"
 #include <fstream>
 #include <string.h> //memcpy
 #include "MathDefs.h"
-
-namespace
-{
-
-	std::optional<Gfx::Object> LoadGeometryObj_(std::filesystem::path const& path)
-	{
-		tinyobj::ObjReader reader;
-		if (!reader.ParseFromFile(path.string()))
-		{
-			if (!reader.Error().empty())
-				std::cout << "TinyObjReader: " << reader.Error() << std::endl;
-			return std::nullopt;
-		}
-
-		if (!reader.Warning().empty())
-			std::cout << "TinyObjReader: " << reader.Warning() << "\n";
-
-		auto const& attrib = reader.GetAttrib();
-		auto const& shapes = reader.GetShapes();
-
-		Gfx::Object result;
-		// Loop over shapes
-		for (size_t shapeIndex = 0; shapeIndex < shapes.size(); shapeIndex++)
-		{
-			Gfx::Shape shape;
-			size_t indexOffset = 0;
-			// Loop over faces
-			for (size_t faceIndex = 0; faceIndex < shapes[shapeIndex].mesh.num_face_vertices.size(); faceIndex++)
-			{
-				size_t numVerticesInFace = (size_t)(shapes[shapeIndex].mesh.num_face_vertices[faceIndex]);
-
-				// Loop over vertices in the face
-				for (size_t vertexIndex = 0; vertexIndex < numVerticesInFace; vertexIndex++)
-				{
-					tinyobj::index_t idx = shapes[shapeIndex].mesh.indices[indexOffset + vertexIndex];
-
-					InterleavedVertex vertex;
-					vertex.x = attrib.vertices[3 * (size_t)(idx.vertex_index) + 0];
-					vertex.y = -attrib.vertices[3 * (size_t)(idx.vertex_index) + 2];
-					vertex.z = attrib.vertices[3 * (size_t)(idx.vertex_index) + 1]; // obj file format specifies +Y as up, we use +Z
-
-					if (idx.normal_index >= 0)
-					{
-						vertex.nx = attrib.normals[3 * (size_t)(idx.normal_index) + 0];
-						vertex.ny = -attrib.normals[3 * (size_t)(idx.normal_index) + 2]; // obj file format specifies +Y as up, we use +Z
-						vertex.nz = attrib.normals[3 * (size_t)(idx.normal_index) + 1];
-					}
-
-					vertex.r = attrib.colors[3 * (size_t)(idx.vertex_index) + 0];
-					vertex.g = attrib.colors[3 * (size_t)(idx.vertex_index) + 1];
-					vertex.b = attrib.colors[3 * (size_t)(idx.vertex_index) + 2];
-					shape.points.push_back(vertex);
-				}
-				indexOffset += numVerticesInFace;
-			}
-
-			result.shapes.push_back(shape);
-		}
-
-		return result;
-	}
-
-} // Anonymous namespace
 
 namespace Gfx
 {
 
 namespace Utils
 {
-	std::optional<Object> LoadGeometry(std::filesystem::path const& path)
-	{
-		if (path.extension() == ".obj")
-		{
-			return LoadGeometryObj_(path);
-		}
-		else
-		{
-			std::cout << "Unhandled file type: " << path << std::endl;
-			return std::nullopt;
-		}
-	}
-
 	std::optional<TextureResource> LoadTexture(std::filesystem::path const& path)
 	{
 		TextureResource res;

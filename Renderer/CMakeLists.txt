@@ -7,7 +7,7 @@ add_subdirectory("Core")
 # Add source to this project's executable.
 add_executable (Renderer "main.cpp" "GpuBuffer.h" "GpuBuffer.cpp" "GpuTexture.h" "GpuTexture.cpp" "Quad.h" 
                 "QuadRenderPipeline.h" "QuadRenderPipeline.cpp" "Terrain.h" "QuadDefs.h" "Terrain.cpp" 
-                 "Renderer.h" "GraphicsContext.h" "GraphicsContext.cpp" "ShaderLoader.h" "ShaderLoader.cpp")
+                 "Renderer.h" "Renderer.cpp" "GraphicsContext.h" "GraphicsContext.cpp" "ShaderLoader.h" "ShaderLoader.cpp")
 
 target_include_directories(Renderer SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/ext")
 target_link_libraries(Renderer PRIVATE Core glfw webgpu glfw3webgpu glm)

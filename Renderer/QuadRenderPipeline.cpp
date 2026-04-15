@@ -1,6 +1,7 @@
 #include "QuadRenderPipeline.h"
 #include "Quad.h"
 #include "QuadDefs.h"
+#include "CameraDefs.h"
 
 namespace Gfx
 {
@@ -67,7 +68,7 @@ namespace Gfx
 		cameraUniformBinding.binding = 3;
 		cameraUniformBinding.visibility = wgpu::ShaderStage::Vertex;
 		cameraUniformBinding.buffer.type = wgpu::BufferBindingType::Uniform;
-		cameraUniformBinding.buffer.minBindingSize = sizeof(CamUniforms);
+		cameraUniformBinding.buffer.minBindingSize = sizeof(CamUniform);
 		cameraUniformBinding.buffer.hasDynamicOffset = false;
 
 		wgpu::BindGroupLayoutEntry& animationUniformBinding = _bindLayouts[4];
