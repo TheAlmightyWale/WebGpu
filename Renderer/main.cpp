@@ -3,13 +3,12 @@
 #include <iostream>
 #include <glfw3webgpu.h>
 #include <array>
+#include <functional>
 
 #include "Core/webgpu.h"
 #include "Core/Utils.h"
 #include "CameraDefs.h"
 #include "Core/MathDefs.h"
-#include "GpuBuffer.h"
-#include "GpuTexture.h"
 #include "Terrain.h"
 #include "Core/Chrono.h"
 #include "Core/ResourceManager.h"
@@ -22,6 +21,22 @@ uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
 	uint32_t divideAndCeil = value / multiple + (value % multiple == 0 ? 0 : 1);
 	return multiple * divideAndCeil;
+}
+
+struct InputCtx{
+	Gfx::Debug::DebugAtlasViewer* pAtlasViewer;
+};
+static InputCtx g_inputCtx;
+
+void KeyCallback(GLFWwindow* /*window*/, int key, int /*scancode*/, int action, int /*mods*/)
+{
+	//if key is 'X'
+	if(key == GLFW_KEY_X && action == GLFW_PRESS)
+	{
+		static bool bVis = true;
+		bVis = !bVis;
+		g_inputCtx.pAtlasViewer->SetVisibility(bVis);
+	}
 }
 
 int main()
@@ -51,6 +66,10 @@ int main()
 	Gfx::Terrain terrain(10, 10, 50, resources);
 	float const k_atlasViewerSize = 500.0f;
 	Gfx::Debug::DebugAtlasViewer atlasViewer(k_atlasViewerSize, k_atlasWidth, k_atlasHeight);
+
+	//input for viewing and hiding debug atlas
+	g_inputCtx.pAtlasViewer = &atlasViewer;
+	glfwSetKeyCallback(window.get(), KeyCallback);
 
 	while (!window.ShouldClose())
 	{
