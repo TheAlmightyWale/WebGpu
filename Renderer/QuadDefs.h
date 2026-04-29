@@ -7,7 +7,7 @@ namespace Gfx
 struct QuadTransform
 {
 	Vec3f position;
-	float _pad1 = 0.f;
+	uint32_t bIsVisible = 1;
 	Vec2f scale;
 	float _pad2[2] = {0.f,0.f}; //Each member must be 16 byte aligned, min 32 bytes
 };

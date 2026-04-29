@@ -16,6 +16,7 @@
 #include "Core/Window.h"
 #include "GlobalBuffers.h"
 #include "Renderer.h"
+#include "DebugAtlasViewer.h"
 
 uint32_t CeilToNextMultiple(uint32_t value, uint32_t multiple)
 {
@@ -35,7 +36,6 @@ int main()
 	quadCam.position = Vec2f{0.5f, 0.5f};
 	quadCam.extents = Vec2f{(float)Gfx::k_screenWidth, (float)Gfx::k_screenHeight};
 
-	// Temp animation load
 	uint32_t const k_atlasWidth = renderer.GetContext().GetDeviceLimits().limits.maxTextureDimension1D;
 	uint32_t const k_atlasHeight = renderer.GetContext().GetDeviceLimits().limits.maxTextureDimension2D;
 	Gfx::ResourceManager resources(k_atlasWidth, k_atlasHeight);
@@ -49,25 +49,8 @@ int main()
 	}
 
 	Gfx::Terrain terrain(10, 10, 50, resources);
-	std::span<Gfx::QuadTransform> debugAtlas = Gfx::g_transformBuffer.RegisterData(Gfx::k_maxAtlas);
-	std::span<Gfx::AnimUniform> debugAtlasAnims = Gfx::g_animationBuffer.RegisterData(Gfx::k_maxAtlas);
-
-	// Fill in debug atlas data
-	float k_debugAtlasSize = 500.f;
-	for (uint32_t i = 0; i < Gfx::k_maxAtlas; i++)
-	{
-		debugAtlas[i] = Gfx::QuadTransform{
-			Vec3f(-10.f - k_debugAtlasSize, (i * -5.0f) - (i * k_debugAtlasSize), 0.0f),
-			0.0f, // pad
-			Vec2f(k_debugAtlasSize, k_debugAtlasSize)};
-
-		// cover entierty of atlas
-		debugAtlasAnims[i] = Gfx::AnimUniform{
-			Vec2f(0.f, 0.f),
-			Vec2f(k_atlasWidth, k_atlasHeight),
-			0,
-			i};
-	}
+	float const k_atlasViewerSize = 500.0f;
+	Gfx::Debug::DebugAtlasViewer atlasViewer(k_atlasViewerSize, k_atlasWidth, k_atlasHeight);
 
 	while (!window.ShouldClose())
 	{

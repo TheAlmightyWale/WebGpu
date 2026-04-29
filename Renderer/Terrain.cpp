@@ -24,7 +24,7 @@ Terrain::Terrain(uint32_t width, uint32_t height, uint32_t cellSize, ResourceMan
 		float x = (float)(cellSize * colPos);
 		float y = (float)(cellSize * rowPos);
 		QuadTransform cell{
-			{x,y,0.0f}, 0.f /*pad*/,
+			{x,y,0.0f}, 1 /*isVisible*/,
 			{cellSize, cellSize}
 		};
 		_cells[cellId] = cell;

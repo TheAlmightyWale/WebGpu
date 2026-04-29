@@ -24,12 +24,14 @@ struct Animation {
 
 struct Transform {
     position: vec3f,
-    _padding0: f32,
+    bIsVisible: u32,
     scale: vec2f,
     _padding: vec2f,
 }
 
 const k_maxInstancesPerDraw = 102;
+//arbitrary position to hide a sprite somewhere off map
+const k_hideSpriteValue = -9999999999.0f;
 
 @group(0) @binding(0) var<uniform> uTransforms: array<Transform, k_maxInstancesPerDraw>;
 @group(0) @binding(1) var textures: texture_2d_array<f32>;
@@ -43,9 +45,13 @@ fn vs_main(in: VertexInput, @builtin(instance_index) instance: u32) -> VertexOut
     var transform = uTransforms[instance];
     //Model transform
     out.position = vec4f((transform.position.xy + transform.scale.xy * in.position.xy).xy, transform.position.z + in.position.z, 1.0f);
+    if(transform.bIsVisible == 0){
+        out.position = vec4f(k_hideSpriteValue, k_hideSpriteValue, k_hideSpriteValue, 1.0f);
+    }
+    
     //View space
     out.position = vec4f(out.position.xy - uCamera.posExtent.xy, out.position.z, out.position.w);
-    //NDC projection 
+    //NDC (Normalized device co-ordinates) projection 
     out.position = vec4f(out.position.x / uCamera.posExtent.z,
                          out.position.y / uCamera.posExtent.w,
                          out.position.zw
