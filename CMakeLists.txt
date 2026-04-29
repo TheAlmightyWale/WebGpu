@@ -29,6 +29,11 @@ add_subdirectory ("Renderer")
 
 # Option to enable/disable building tests
 option(BUILD_TESTS "Build the test suite" ON)
+option(BUILD_EXAMPLE "Build Example Application" ON)
+
+if(BUILD_EXAMPLE)
+	add_subdirectory("Renderer-ex")
+endif()
 
 # Include tests directory if BUILD_TESTS is enabled
 if(BUILD_TESTS)

@@ -28,5 +28,3 @@ if (MSVC)
 else()
     target_compile_options(Core PRIVATE -Wall -Wextra -pedantic)
 endif()
-
-target_copy_webgpu_binaries(Core)
