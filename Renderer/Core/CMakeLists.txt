@@ -15,7 +15,7 @@ add_library(Core "Utils.h" "Utils.cpp" "MathDefs.h" "TextureAtlas.h" "TextureAtl
                 "ResourceManager.cpp" "Packing.h" "Packing.cpp" "webgpu.h" "webgpu.cpp" "Window.h")
 
 target_include_directories(Core SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/ext")
-target_link_libraries(Core PRIVATE glfw webgpu glfw3webgpu glm glaze::glaze)
+target_link_libraries(Core PUBLIC glfw webgpu glfw3webgpu glm::glm PRIVATE glaze::glaze)
 
 set_target_properties(Core PROPERTIES 
 	CXX_STANDARD 23

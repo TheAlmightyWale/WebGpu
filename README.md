@@ -14,8 +14,16 @@ cmake -B build -DBUILD_TESTS=OFF
 cmake -B build -DBUILD_TESTS=ON
 ```
 
-#### Roadmap
+### Build Example Application
+By default, an example application is built along with the main library. To Toggle this use
 
-- Loading in and allowing for multiple animations at once
-- Debug text rendering
-- sprite/ texture atlasing
+```bash
+# Configure without tests
+cmake -B build -DBUILD_EXAMPLE=OFF
+```
+
+#### Roadmap
+- Add indirection to global buffers, so users of library can set their own
+- Specify maximum limits in shader and cpu side with a single definition
+- fixed point rendering and GPU compute
+

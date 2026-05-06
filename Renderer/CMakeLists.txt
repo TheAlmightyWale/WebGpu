@@ -9,7 +9,7 @@ add_library (Renderer "DebugAtlasViewer.h" "DebugAtlasViewer.cpp" "GpuBuffer.h" 
                  "Renderer.h" "Renderer.cpp" "GraphicsContext.h" "GraphicsContext.cpp" "ShaderLoader.h" "ShaderLoader.cpp")
 
 target_include_directories(Renderer SYSTEM PUBLIC "${CMAKE_SOURCE_DIR}/ext")
-target_link_libraries(Renderer PUBLIC Core glfw webgpu glfw3webgpu glm)
+target_link_libraries(Renderer PUBLIC Core)
 
 set_target_properties(Renderer PROPERTIES 
 	CXX_STANDARD 23
