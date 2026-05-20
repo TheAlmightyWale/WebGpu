@@ -11,3 +11,16 @@ if (APPLE)
   target_compile_options(glfw3webgpu PRIVATE -x objective-c)
   target_link_libraries(glfw3webgpu PRIVATE "-framework Cocoa" "-framework CoreVideo" "-framework IOKit" "-framework QuartzCore")
 endif ()
+
+include(GNUInstallDirs)
+
+install(TARGETS glfw3webgpu
+  EXPORT glfw3webgpu-targets
+  PUBLIC_HEADER
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT glfw3webgpu-targets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${TREADLE_LIBRARY_NAME}
+		NAMESPACE glfw3webgpu::
+)

@@ -8,7 +8,10 @@ add_library (Renderer "DebugAtlasViewer.h" "DebugAtlasViewer.cpp" "GpuBuffer.h" 
                 "QuadRenderPipeline.h" "QuadRenderPipeline.cpp" "Terrain.h" "QuadDefs.h" "Terrain.cpp" 
                  "Renderer.h" "Renderer.cpp" "GraphicsContext.h" "GraphicsContext.cpp" "ShaderLoader.h" "ShaderLoader.cpp")
 
-target_include_directories(Renderer SYSTEM PUBLIC "${CMAKE_SOURCE_DIR}/ext")
+target_include_directories(Renderer SYSTEM PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> 
+        #relative to CMAKE_INSTALL_PREFIX
+        $<INSTALL_INTERFACE:include>)
 target_link_libraries(Renderer PUBLIC Core)
 
 set_target_properties(Renderer PROPERTIES 

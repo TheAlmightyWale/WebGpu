@@ -10,9 +10,17 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(glaze)
 
-add_library(Core "Utils.h" "Utils.cpp" "MathDefs.h" "TextureAtlas.h" "TextureAtlas.cpp" 
-            "ImageLoader.h" "ImageLoader.cpp" "Chrono.h" "ResourceManager.h" "ResourceDefs.h"
-                "ResourceManager.cpp" "Packing.h" "Packing.cpp" "webgpu.h" "webgpu.cpp" "Window.h")
+add_library(Core)
+target_sources(Core 
+    PRIVATE 
+		"Utils.cpp" "TextureAtlas.cpp" "ImageLoader.cpp" "ResourceManager.cpp" "Packing.cpp" "webgpu.cpp"   
+ 	PUBLIC
+		FILE_SET HEADERS
+		FILES
+        "Utils.h" "MathDefs.h" "TextureAtlas.h" 
+        "ImageLoader.h" "Chrono.h" "ResourceManager.h" "ResourceDefs.h"
+        "Packing.h" "webgpu.h" "Window.h"
+)
 
 target_include_directories(Core SYSTEM PRIVATE "${CMAKE_SOURCE_DIR}/ext")
 target_link_libraries(Core PUBLIC glfw webgpu glfw3webgpu glm::glm PRIVATE glaze::glaze)
@@ -28,3 +36,16 @@ if (MSVC)
 else()
     target_compile_options(Core PRIVATE -Wall -Wextra -pedantic)
 endif()
+
+include(GNUInstallDirs)
+
+install(TARGETS Core
+		EXPORT core-targets
+		FILE_SET HEADERS
+		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT core-targets
+		DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${TREADLE_LIBRARY_NAME}
+		NAMESPACE renderer::		
+)

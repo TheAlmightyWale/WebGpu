@@ -32,3 +32,15 @@ if(BUILD_TESTS)
     add_subdirectory("Tests")
 endif()
 
+include(GNUInstallDirs)
+
+install(TARGETS Renderer
+		EXPORT renderer-targets
+		FILE_SET HEADERS
+		DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT renderer-targets
+		DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/renderer
+		NAMESPACE renderer::		
+)
