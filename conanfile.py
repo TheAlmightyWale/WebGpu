@@ -27,6 +27,9 @@ class Renderer(ConanFile):
     def requirements(self):
         self.requires("glm/1.0.1")
         self.requires("glfw/3.4")
+        # Glaze JSON parsing library
+        self.requires("glaze/7.4.0")
+        
         self.test_requires("gtest/1.17.0")
 
     def layout(self):

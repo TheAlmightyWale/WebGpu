@@ -1,19 +1,9 @@
-# Glaze JSON parsing library
-include(FetchContent)
-
-FetchContent_Declare(
-  glaze
-  GIT_REPOSITORY https://github.com/stephenberry/glaze.git
-  GIT_TAG main
-  GIT_SHALLOW TRUE
-)
-
-FetchContent_MakeAvailable(glaze)
+find_package(glaze REQUIRED)
 
 add_library(Core)
 target_sources(Core 
     PRIVATE 
-		"Utils.cpp" "TextureAtlas.cpp" "ImageLoader.cpp" "ResourceManager.cpp" "Packing.cpp" "webgpu.cpp"   
+		"Utils.cpp" "TextureAtlas.cpp" "ImageLoader.cpp" "ResourceManager.cpp" "Packing.cpp" "webgpu.cpp" "stb_image.h" "stb_rect_pack.h"  
  	PUBLIC
 		FILE_SET HEADERS
 		FILES

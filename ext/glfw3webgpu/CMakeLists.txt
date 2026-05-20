@@ -4,7 +4,7 @@
 
 # The glfw3webgpu target
 add_library(glfw3webgpu STATIC glfw3webgpu.c)
-target_include_directories(glfw3webgpu PUBLIC .)
+target_include_directories(glfw3webgpu PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> $<INSTALL_INTERFACE:include>)
 target_link_libraries(glfw3webgpu PUBLIC glfw webgpu)
 
 if (APPLE)
@@ -16,7 +16,7 @@ include(GNUInstallDirs)
 
 install(TARGETS glfw3webgpu
   EXPORT glfw3webgpu-targets
-  PUBLIC_HEADER
+  FILE_SET HEADERS
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
